@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 // Seeds: subjects (from the evaluation sheets), sections, rooms, 25 demo proctors + availability for Nov 17-20, 2026.
 // Run:  npx tsx scripts/seed-demo.ts      (safe to run again)
 import 'dotenv/config';
@@ -85,7 +87,7 @@ async function main() {
 
   const existing = new Map<string, string>();
   const list = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  list.data?.users.forEach((u) => existing.set(u.email!, u.id));
+  list.data?.users.forEach((u: any) => existing.set(u.email!, u.id));
 
   // 35% (9 of 25) are half-day only: 3 morning, 3 afternoon, 3 middle (10:00-14:00).
   const HALF = new Set([0, 3, 6, 9, 12, 15, 18, 21, 24]);

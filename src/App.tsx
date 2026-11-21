@@ -180,7 +180,7 @@ export default function App() {
         <NotificationPanel open={showNotes} notes={notes} onClose={() => setShowNotes(false)} onOpen={openNote} onReadAll={readAll} />
         <BulletinPanel open={showBull} items={bulls} since={bullSince} canPost={me.role === 'admin'}
           onClose={() => setShowBull(false)} onOpen={openBull} onChanged={refreshBulls} />
-        <AssistantPanel open={showBot} role={me.role} onClose={() => setShowBot(false)} onGo={goFromBot} />
+        <AssistantPanel key={me.id} open={showBot} role={me.role} userId={me.id} onClose={() => setShowBot(false)} onGo={goFromBot} />
         {!showBot && (
           <button className={`botfab ${showNotes || showBull ? 'shift' : ''}`} aria-label="Open assistant" onClick={toggleBot}>
             <Icon name="chat" size={24} />

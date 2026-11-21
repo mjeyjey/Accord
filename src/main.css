@@ -428,6 +428,16 @@ nav a.active, aside, aside:hover, aside:focus-within { box-shadow: none !importa
 .dlgicon { display: grid; place-items: center; width: 64px; height: 64px; margin: 4px auto 14px; border-radius: 50%; background: var(--ice-soft); color: var(--blue); }
 .dlgicon.bad { background: var(--red-soft); color: var(--red); }
 
+/* assistant answers: headings, one card per item, small detail lines */
+.msg.bot { white-space: normal; }
+.msg p { margin: 0 0 6px; }
+.msg p:last-child { margin-bottom: 0; }
+.msg h5 { margin: 6px 0 6px; font-size: 13px; color: var(--head); }
+.msg ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.msg li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 12px; background: var(--white); border: 1px solid var(--line); }
+.msg li.has-sub > span { font-weight: 600; color: var(--head); }
+.msg li small { color: var(--muted); font-size: 12px; }
+
 .chip-user .deptcode { font-style: normal; margin-left: 8px; padding: 1px 9px; border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font-size: 10.5px; font-weight: 600; letter-spacing: .4px; text-transform: none; }
 
 /* ===== proctor pages ===== */

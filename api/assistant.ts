@@ -110,7 +110,9 @@ function blocks(rows: any[]) {
       emergency: !!f.emergency, note: f.emergency_note || null, hours: g.length };
   }).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 }
-const blockLine = (b: any, withProctor = true) => `${dateLabel(b.date)}, ${b.time} · ${b.section} (${b.subjects}) · ${b.room ? `Room ${b.room}` : "room TBA"}` + (withProctor ? ` · ${b.proctor || "proctor TBA"}` : "") + (b.emergency ? " · EMERGENCY" : "");
+const blockLine = (b: any, withProctor = true) =>
+  `${dateLabel(b.date)} · ${b.time} · ${b.section}${b.emergency ? " · EMERGENCY" : ""}\n  Subjects: ${b.subjects}\n  ${b.room ? `Room ${b.room}` : "Room TBA"}` +
+  (withProctor ? ` · ${b.proctor || "Proctor TBA"}` : "");
 
 async function answer(me: Me, raw: string, links: Link[], prior?: string) {
   const q = norm(`${prior || ""} ${raw}`), own = norm(raw), today = manilaToday();
@@ -155,7 +157,7 @@ async function answer(me: Me, raw: string, links: Link[], prior?: string) {
       if (error) throw error; link(me, links, "Open My schedule", "/my-schedule");
       const found = (data || []).filter((r: any) => !date || r.exam_date === date), bs = blocks(found);
       if (!bs.length) return date ? `You have no exam on ${dateLabel(date)}.` : "You have no upcoming exams yet. Check Assignment requests for open sections.";
-      return `${date ? `Your exams on ${dateLabel(date)}:` : `Your next exam: ${blockLine(bs[0], false)}\nUpcoming blocks:`}\n${bullets(bs.map((b) => blockLine(b, false)))}`;
+      return `${date ? `Your exams on ${dateLabel(date)}:` : `Your next exam:\n${bullets([blockLine(bs[0], false)])}\n\nUpcoming blocks:`}\n${bullets(bs.map((b) => blockLine(b, false)))}`;
     }
     return guide(me, q, links);
   }
@@ -193,7 +195,7 @@ async function answer(me: Me, raw: string, links: Link[], prior?: string) {
     const rows = await schedulesFor(me, scopedPeriodId);
     const bs = blocks(rows.filter((r) => r.status === "scheduled" && r.emergency));
     link(me, links, "View emergencies", "/#emergencies");
-    return bs.length ? `${plural(bs.length, "block")} flagged as an emergency:\n${bullets(bs.map((b) => `${blockLine(b)}${b.note ? ` · ${b.note}` : ""}`))}` : "No proctor emergencies are flagged right now.";
+    return bs.length ? `${plural(bs.length, "block")} flagged as an emergency:\n${bullets(bs.map((b) => `${blockLine(b)}${b.note ? `\n  Note: ${b.note}` : ""}`))}` : "No proctor emergencies are flagged right now.";
   }
   if (/\b(unplaced|unscheduled|not placed|could not place)\b/.test(q)) {
     const rows = (await schedulesFor(me, scopedPeriodId)).filter((r) => r.status === "unscheduled");
@@ -375,7 +377,8 @@ Rules:
 - Give lookup_accord_data one short, self-contained question in plain English, with explicit dates (YYYY-MM-DD) and codes like "BSIS 3A". Examples:
 ${examples.map((e) => `  ${e}`).join("\n")}
 - If the lookup says it could not match the question, retry once with simpler wording from the examples, then tell the user honestly.
-- Answer only from lookup results. Be short and friendly. Plain text only: no markdown, no asterisks, no tables; use "- " for lists.
+- Answer only from lookup results. Be short and friendly. Plain text only: no markdown, no asterisks, no tables.
+- Keep the structure of the lookup result. Start with one short line ending in a colon, then one "- " line per item. Put extra details of an item on the next lines, each indented with two spaces. Never merge items into a paragraph. Show at most 8 items, then say how many more there are.
 - If the question is unrelated to Accord, say you can only help with Accord.
 - Reply in the user's language (English or Filipino).`;
 }
