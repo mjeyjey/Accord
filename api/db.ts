@@ -194,6 +194,10 @@ async function postBulletin(me: Me, body: any, res: VercelResponse) {
   const text = String(body.body || "").trim();
   const department_id = body.department_id ? String(body.department_id) : null;
   if (!title || !text) return res.status(400).json({ error: "Title and message are required" });
+  const since = new Date(Date.now() - 30000).toISOString();
+  const { count: dup } = await db.from("bulletins").select("id", { count: "exact", head: true })
+    .eq("created_by", me.id).eq("title", title).eq("body", text).gte("created_at", since);
+  if (dup) return res.status(409).json({ error: "That announcement was just posted" });
   const { data, error } = await db.from("bulletins")
     .insert({ title, body: text, department_id, created_by: me.id, created_by_name: me.full_name })
     .select().single();
@@ -220,6 +224,15 @@ function cutoffProblem(body: any): string | null {
   body.accept_cutoff_hours = n;
   return null;
 }
+
+// Natural keys: if a row with the same values exists, a second insert is refused.
+const NATURAL: Record<string, string[]> = {
+  availability: ["proctor_id", "date", "start_time", "end_time"],
+  exam_periods: ["name", "start_date", "end_date"],
+  sections: ["program_id", "year_level", "name"],
+  subjects: ["program_id", "year_level", "semester", "code"],
+  programs: ["code"], departments: ["code"], rooms: ["name"],
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const me = await authenticate(req, res);
@@ -358,6 +371,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res
           .status(403)
           .json({ error: "That is outside your department" });
+      const keys = NATURAL[table];
+      if (keys && keys.every((k) => body[k] !== undefined && body[k] !== null)) {
+        let dup: any = db.from(table).select("id", { count: "exact", head: true });
+        for (const k of keys) dup = dup.eq(k, body[k]);
+        const { count } = await dup;
+        if (count) return res.status(409).json({ error: "That record already exists" });
+      }
       const { data, error } = await db
         .from(table)
         .insert(body)

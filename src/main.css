@@ -489,3 +489,17 @@ nav a.active, aside, aside:hover, aside:focus-within { box-shadow: none !importa
 .brand small { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ice); opacity: .85; }
 .brand .logomark img { filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .35)); }
 .auth.solo .auth-card { padding: 34px 32px 28px; }
+
+button[aria-busy="true"]::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+button[aria-busy="true"] { pointer-events: none; }
