@@ -335,5 +335,5 @@ This project is proprietary software developed for La Concepcion College.
 ---
 
 <p align="center">
-  Built with ❤️ for La Concepcion College
+  Built for La Concepcion College
 </p>
