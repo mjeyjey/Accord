@@ -7,16 +7,17 @@ const table = (() => {
   }
   return t;
 })();
-const crc32 = (b: Uint8Array) => {
+const crc32 = (b) => {
   let c = 0xffffffff;
   for (let i = 0; i < b.length; i++) c = table[(c ^ b[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 };
 
-export function makeZip(files: { name: string; data: Uint8Array }[]): Blob {
+/** @param {{ name: string; data: Uint8Array }[]} files @returns {Blob} */
+export function makeZip(files) {
   const enc = new TextEncoder();
-  const parts: Uint8Array[] = [];
-  const central: Uint8Array[] = [];
+  const parts = [];
+  const central = [];
   let offset = 0;
   const now = new Date();
   const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
@@ -44,5 +45,5 @@ export function makeZip(files: { name: string; data: Uint8Array }[]): Blob {
   const end = new DataView(new ArrayBuffer(22));
   end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
   end.setUint32(12, size, true); end.setUint32(16, offset, true);
-  return new Blob([...parts, ...central, new Uint8Array(end.buffer)] as unknown as BlobPart[], { type: 'application/zip' });
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
 }

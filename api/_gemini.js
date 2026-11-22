@@ -1,17 +1,17 @@
 export const geminiEnabled = () => !!process.env.GEMINI_API_KEY;
 
-const MODELS = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-3.5-flash"].filter(Boolean) as string[])];
+const MODELS = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-3.5-flash"].filter(Boolean))];
 
 // Calls Gemini over plain REST (no SDK). Tries the next model if one is missing or busy.
-export async function generate(body: any): Promise<any> {
+export async function generate(body) {
   let err = "Gemini request failed";
   for (const model of MODELS) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
       body: JSON.stringify(body),
     });
-    const json: any = await res.json().catch(() => ({}));
+    const json = await res.json().catch(() => ({}));
     if (res.ok) return json;
     err = `${model}: ${res.status} ${json?.error?.message || ""}`;
     if (![404, 429, 500, 503].includes(res.status)) break;

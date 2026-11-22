@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import Logo from '../components/Logo';
+import { LogoMark } from '../components/Logo';
 import { Field } from '../components/ui';
 import SignupModal from '../components/SignupModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
@@ -32,19 +32,17 @@ export default function Login({ notice }: { notice: string }) {
   };
 
   return (
-    <div className="auth">
-      <section className="auth-art">
-        <Logo light size={52} />
-        <h1>Hey, Hello!</h1>
-        <p className="lead">Welcome to Accord</p>
-        <p className="blurb">Plan exam rooms, proctors and schedules for every department, with no clashes and no spreadsheets.</p>
-      </section>
+    <div className="auth solo">
+      <main className="auth-center">
+        <div className="brand">
+          <LogoMark size={76} />
+          <h1>Accord</h1>
+          <small>La Concepcion College</small>
+        </div>
 
-      <section className="auth-form">
         <form className="auth-card" onSubmit={submit} noValidate>
-          <Logo size={44} />
           <div>
-            <h2>Welcome Back</h2>
+            <h2>Welcome back</h2>
             <p className="sub">Sign in to manage exam schedules.</p>
           </div>
           {(formErr || notice) && <div className="alert error">{formErr || notice}</div>}
@@ -63,7 +61,7 @@ export default function Login({ notice }: { notice: string }) {
           <button type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Login'}</button>
           <p className="foot">Need an account? <button type="button" className="link" onClick={() => setSignup(true)}>Create account</button></p>
         </form>
-      </section>
+      </main>
 
       {forgot && <ForgotPasswordModal initialEmail={email} onClose={() => setForgot(false)} />}
       {signup && <SignupModal onClose={() => setSignup(false)} />}

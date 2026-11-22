@@ -114,6 +114,86 @@ const blockLine = (b: any, withProctor = true) =>
   `${dateLabel(b.date)} · ${b.time} · ${b.section}${b.emergency ? " · EMERGENCY" : ""}\n  Subjects: ${b.subjects}\n  ${b.room ? `Room ${b.room}` : "Room TBA"}` +
   (withProctor ? ` · ${b.proctor || "Proctor TBA"}` : "");
 
+// ---------- generic, role-scoped data reader (used by the AI) ----------
+const ALLR: Role[] = ["admin", "head", "proctor"];
+const READ_SPECS: Record<string, { select: string; roles: Role[]; order: [string, boolean] }> = {
+  departments:   { select: "id,code,name", roles: ALLR, order: ["code", true] },
+  programs:      { select: "id,code,name,floor,department_id,department:departments(code)", roles: ALLR, order: ["code", true] },
+  profiles:      { select: "id,full_name,email,role,status,department_id,created_at,department:departments(code)", roles: MANAGERS, order: ["full_name", true] },
+  subjects:      { select: "id,code,title,year_level,semester,program:programs(code,department_id)", roles: MANAGERS, order: ["code", true] },
+  sections:      { select: "id,name,year_level,student_count,program:programs(code,department_id)", roles: MANAGERS, order: ["name", true] },
+  rooms:         { select: "id,name,floor,capacity,department_id,department:departments(code)", roles: ALLR, order: ["name", true] },
+  availability:  { select: "id,proctor_id,date,start_time,end_time,proctor:profiles(full_name,department_id)", roles: ALLR, order: ["date", true] },
+  exam_periods:  { select: "*", roles: ALLR, order: ["start_date", true] },
+  schedules:     { select: SEL, roles: ALLR, order: ["exam_date", true] },
+  bulletins:     { select: "id,title,body,department_id,created_by_name,created_at,kind", roles: ALLR, order: ["created_at", false] },
+  notifications: { select: "id,kind,title,body,read,created_at", roles: ALLR, order: ["created_at", false] },
+  audit_log:     { select: "id,user_name,action,entity,details,created_at", roles: ["admin"], order: ["created_at", false] },
+  trash:         { select: "id,entity,label,deleted_by_name,deleted_at", roles: ["admin"], order: ["deleted_at", false] },
+};
+const flat = (r: any, p = "", o: any = {}) => {
+  for (const [k, v] of Object.entries(r)) {
+    const key = p + k;
+    if (v === null || v === undefined || v === "" || /(^|\.)id$|_id$/.test(key)) continue;
+    if (Array.isArray(v)) o[key] = `${v.length} item(s)`;
+    else if (k === "details") o[key] = JSON.stringify(v).slice(0, 200);
+    else if (typeof v === "object") flat(v, key + ".", o);
+    else o[key] = /time$/.test(k) ? hhmm(String(v)) : v;
+  }
+  return o;
+};
+
+async function readData(me: Me, a: any): Promise<string> {
+  const table = String(a?.table || "");
+  const has = Object.prototype.hasOwnProperty.call(READ_SPECS, table);
+  const spec = has ? READ_SPECS[table] : null;
+  if (!spec || !spec.roles.includes(me.role))
+    return `You do not have access to "${table}". You can read: ${Object.keys(READ_SPECS).filter((t) => READ_SPECS[t].roles.includes(me.role)).join(", ")}.`;
+  if (me.role === "head" && !me.department_id) return "Your account has no department yet.";
+  const dept = me.department_id;
+
+  let rows = await fetchAll(() => {
+    let q: any = db.from(table).select(spec.select);
+    if (table === "notifications") q = q.eq("user_id", me.id);
+    if (me.role === "proctor" && (table === "schedules" || table === "availability")) q = q.eq("proctor_id", me.id);
+    if (me.role === "head") {
+      if (table === "profiles") q = q.eq("role", "proctor").eq("department_id", dept);
+      if (table === "programs") q = q.eq("department_id", dept);
+      if (table === "departments") q = q.eq("id", dept);
+    }
+    return q.order(spec.order[0], { ascending: spec.order[1] }).order("id");
+  });
+
+  if (me.role === "head") {
+    if (["subjects", "sections", "schedules"].includes(table)) rows = rows.filter((r) => r.program?.department_id === dept);
+    if (table === "availability") rows = rows.filter((r) => r.proctor?.department_id === dept);
+    if (table === "rooms") rows = rows.filter((r) => !r.department_id || r.department_id === dept);
+    if (table === "exam_periods") {
+      const progs = await fetchAll(() => db.from("programs").select("id").eq("department_id", dept).order("id"));
+      const ids = new Set(progs.map((p: any) => p.id));
+      rows = rows.filter((p: any) => (p.program_ids || []).some((id: string) => ids.has(id)));
+    }
+  }
+  if (me.role !== "admin" && table === "bulletins") rows = rows.filter((r) => !r.department_id || r.department_id === dept);
+
+  let list = rows.map((r) => flat(r));
+  const words = norm(String(a?.search || "")).split(" ").filter(Boolean);
+  if (words.length) list = list.filter((r) => { const s = norm(JSON.stringify(r)); return words.every((w) => s.includes(w)); });
+  const field = String(a?.field || ""), value = norm(String(a?.value || ""));
+  if (field && value) list = list.filter((r) => norm(String(r[field] ?? "")).includes(value));
+
+  const head = `${table}: ${plural(list.length, "record")} match${list.length === 1 ? "" : "es"} (rows in "schedules" are one exam hour each).`;
+  if (!list.length) return head;
+  const gb = String(a?.group_by || "");
+  if (gb) {
+    const m = new Map<string, number>();
+    list.forEach((r) => { const k = String(r[gb] ?? "(none)"); m.set(k, (m.get(k) || 0) + 1); });
+    return `${head}\nCount by ${gb}:\n${bullets([...m.entries()].sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k}: ${n}`), 30)}`;
+  }
+  const limit = Math.min(30, Math.max(1, Math.floor(Number(a?.limit)) || 15));
+  return `${head}\n${bullets(list.slice(0, limit).map((r) => Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(" · ")), limit)}`;
+}
+
 async function answer(me: Me, raw: string, links: Link[], prior?: string) {
   const q = norm(`${prior || ""} ${raw}`), own = norm(raw), today = manilaToday();
   const date = parseDate(own, today) || parseDate(q, today);
@@ -360,11 +440,25 @@ function guide(me: Me, q: string, links: Link[], ctx?: any): string {
   return `I could not match that to a supported Accord question. Try:\n${bullets(me.role === "proctor" ? ["What is my next exam?", "Which open assignments can I accept?", "How do I add availability?", "How do I flag an emergency?"] : ["How many proctors are available today?", "Which sections are pending a proctor or room?", "Any proctor emergencies?", "How do I generate a schedule?"])}\nType “help” for examples.`;
 }
 
-const TOOLS = [{ functionDeclarations: [{
-  name: "lookup_accord_data",
-  description: "Looks up live Accord data (schedules, proctors, rooms, availability, emergencies, account requests) or the built-in how-to guide. Pass one short, self-contained question.",
-  parameters: { type: "OBJECT", properties: { question: { type: "STRING", description: "A short plain-English question" } }, required: ["question"] },
-}] }];
+const TOOLS = [{ functionDeclarations: [
+  {
+    name: "lookup_accord_data",
+    description: "Answers common Accord questions (next exam, open assignments, pending blocks, emergencies, unplaced exams, free rooms or proctors) or the how-to guide. Pass one short, self-contained question.",
+    parameters: { type: "OBJECT", properties: { question: { type: "STRING", description: "A short plain-English question" } }, required: ["question"] },
+  },
+  {
+    name: "read_records",
+    description: "Reads records from one Accord table, already limited to what the current user may see. Use it for any list, count, status or detail not covered by lookup_accord_data. Use group_by for counts (e.g. table=profiles group_by=status).",
+    parameters: { type: "OBJECT", properties: {
+      table: { type: "STRING", enum: Object.keys(READ_SPECS) },
+      search: { type: "STRING", description: "Optional words that must all appear in the record" },
+      field: { type: "STRING", description: "Optional column to filter, e.g. status, role, department.code, program.code, exam_date" },
+      value: { type: "STRING", description: "Value for field" },
+      group_by: { type: "STRING", description: "Optional column to count by" },
+      limit: { type: "INTEGER", description: "Max rows to list (default 15, max 30)" },
+    }, required: ["table"] },
+  },
+] }];
 
 function systemPrompt(me: Me) {
   const examples = me.role === "proctor"
@@ -373,7 +467,8 @@ function systemPrompt(me: Me) {
   return `You are the assistant inside Accord, the exam scheduling system of La Concepcion College.
 You are talking to ${me.full_name}, a ${me.role === "head" ? "department head" : me.role}. Today is ${manilaToday()} (Philippine time).
 Rules:
-- For any question about Accord data (schedules, exams, proctors, rooms, availability, emergencies, account requests) or how to use Accord, call lookup_accord_data first. Never answer these from memory and never invent names, dates, rooms or numbers.
+- For any question about Accord data or how to use Accord, call a tool first. Never answer from memory and never invent names, dates, rooms or numbers.
+- Use lookup_accord_data for common questions and how-to. Use read_records for any other list, count, status or detail (tables: departments, programs, profiles, subjects, sections, rooms, availability, exam_periods, schedules, bulletins, notifications, audit_log, trash). The tools already limit results to what this user may see. If a tool says access is denied, tell the user you do not have access to that data. Never try to get around it.
 - Give lookup_accord_data one short, self-contained question in plain English, with explicit dates (YYYY-MM-DD) and codes like "BSIS 3A". Examples:
 ${examples.map((e) => `  ${e}`).join("\n")}
 - If the lookup says it could not match the question, retry once with simpler wording from the examples, then tell the user honestly.
@@ -394,9 +489,13 @@ async function askGemini(me: Me, chat: { role: string; content: string }[], link
     contents.push(content); // keep the model's turn as-is (it may carry thought signatures)
     const replies: any[] = [];
     for (const c of calls) {
-      const q = String(c.functionCall.args?.question || "").slice(0, 300);
+      const args = c.functionCall.args || {};
       let result: string;
-      try { result = await answer(me, q, links); } catch { result = "That lookup failed."; }
+      try {
+        result = c.functionCall.name === "read_records"
+          ? await readData(me, args)
+          : await answer(me, String(args.question || "").slice(0, 300), links);
+      } catch { result = "That lookup failed."; }
       replies.push({ functionResponse: { name: c.functionCall.name, response: { result } } });
     }
     contents.push({ role: "user", parts: replies });

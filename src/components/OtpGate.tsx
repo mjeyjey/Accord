@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import Logo from './Logo';
+import { LogoMark } from './Logo';
 import { Field } from './ui';
 
 export default function OtpGate({ onVerified, onCancel }: { onVerified: () => void; onCancel: () => void }) {
@@ -38,16 +38,14 @@ export default function OtpGate({ onVerified, onCancel }: { onVerified: () => vo
   };
 
   return (
-    <div className="auth">
-      <section className="auth-art">
-        <Logo light size={52} />
-        <h1>One more step</h1>
-        <p className="lead">Keeping Accord secure</p>
-        <p className="blurb">We email a code to confirm it is really you signing in.</p>
-      </section>
-      <section className="auth-form">
+    <div className="auth solo">
+      <main className="auth-center">
+        <div className="brand">
+          <LogoMark size={76} />
+          <h1>Accord</h1>
+          <small>La Concepcion College</small>
+        </div>
         <form className="auth-card" onSubmit={submit} noValidate>
-          <Logo size={44} />
           <div>
             <h2>Verify it’s you</h2>
             <p className="sub">We sent a 6-digit code to<br /><b style={{ color: 'var(--head)' }}>{email || '…'}</b></p>
@@ -67,7 +65,7 @@ export default function OtpGate({ onVerified, onCancel }: { onVerified: () => vo
           </button>
           <p className="foot">Not you? <button type="button" className="link" onClick={onCancel}>Use a different account</button></p>
         </form>
-      </section>
+      </main>
     </div>
   );
 }

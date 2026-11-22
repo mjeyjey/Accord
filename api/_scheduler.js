@@ -1,5 +1,5 @@
 // Scheduling engine. Edit SLOTS to change exam hours (each slot = 1 hour).
-export const SLOTS: Record<"AM" | "PM", string[]> = {
+export const SLOTS = {
   AM: ["08:00", "09:00", "10:00", "11:00"],
   PM: ["13:00", "14:00", "15:00", "16:00"],
 };
@@ -8,13 +8,13 @@ export const MAX_PER_DAY = 4; // max exams one section can have in a single day 
 // true = a section never leaves its own exam days (days_per_year). Hours that don't fit are reported as unplaced.
 export const STRICT_DAYS = true;
 
-export const hhmm = (t: string) => String(t).slice(0, 5);
-export const endOf = (t: string) =>
+export const hhmm = (t) => String(t).slice(0, 5);
+export const endOf = (t) =>
   `${String(Number(hhmm(t).slice(0, 2)) + 1).padStart(2, "0")}:00`;
 
 // Every date in the range, Sundays included.
-export function examDates(start: string, end: string): string[] {
-  const out: string[] = [];
+export function examDates(start, end) {
+  const out = [];
   const last = new Date(end + "T00:00:00Z");
   for (
     const d = new Date(start + "T00:00:00Z");
@@ -26,18 +26,18 @@ export function examDates(start: string, end: string): string[] {
   return out;
 }
 
-export function groupAvail(list: any[]) {
-  const m = new Map<string, any[]>();
+export function groupAvail(list) {
+  const m = new Map();
   for (const a of list) {
     if (!m.has(a.proctor_id)) m.set(a.proctor_id, []);
-    m.get(a.proctor_id)!.push(a);
+    m.get(a.proctor_id).push(a);
   }
   return m;
 }
 
 // A proctor with NO availability rows is NOT available.
 // Only the windows they entered count.
-export const isFree = (list: any[] | undefined, date: string, t: string) =>
+export const isFree = (list, date, t) =>
   !!list &&
   list.some(
     (a) =>
@@ -46,7 +46,7 @@ export const isFree = (list: any[] | undefined, date: string, t: string) =>
       hhmm(a.end_time) >= endOf(t),
   );
 
-function shuffle<T>(a: T[]): T[] {
+function shuffle(a) {
   const x = [...a];
   for (let i = x.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -57,7 +57,7 @@ function shuffle<T>(a: T[]): T[] {
 
 // Each section takes its subjects in BATCHES: back-to-back hours in one room with ONE proctor.
 // A section's subjects are split across its exam days; the proctor changes from day to day.
-export function buildSchedule(inp: any) {
+export function buildSchedule(inp) {
   const {
     dates,
     programs,
@@ -72,18 +72,18 @@ export function buildSchedule(inp: any) {
   } = inp;
   const K = Math.max(1, Math.min(inp.daysPerYear || 1, dates.length));
 
-  const roomUsed = new Set<string>();
-  const procUsed = new Set<string>();
-  const secUsed = new Set<string>();
+  const roomUsed = new Set();
+  const procUsed = new Set();
+  const secUsed = new Set();
   const avail = groupAvail(availability);
-  const load = new Map<string, number>();
-  const secProctors = new Map<string, Set<string>>();
-  const secDays = new Map<string, Set<string>>();
-  const secDayRoom = new Map<string, string>(); // section|date -> the room its students stay in that day
-  const secRoom = new Map<string, string>(); // section -> the room it used first (preferred on later days)
-  const secDayCount = new Map<string, number>(); // section|date -> exams already placed that day
-  const procDaySec = new Map<string, string>(); // proctor|date -> the ONE section that proctor stays with that day
-  const secDayProc = new Map<string, string>(); // section|date -> proctor already covering it that day
+  const load = new Map();
+  const secProctors = new Map();
+  const secDays = new Map();
+  const secDayRoom = new Map(); // section|date -> the room its students stay in that day
+  const secRoom = new Map(); // section -> the room it used first (preferred on later days)
+  const secDayCount = new Map(); // section|date -> exams already placed that day
+  const procDaySec = new Map(); // proctor|date -> the ONE section that proctor stays with that day
+  const secDayProc = new Map(); // section|date -> proctor already covering it that day
   for (const b of busy) {
     const k = `${b.exam_date}|${hhmm(b.start_time)}`;
     if (b.room_id) roomUsed.add(`${b.room_id}|${k}`);
@@ -94,7 +94,7 @@ export function buildSchedule(inp: any) {
       const dayKey = `${b.section_id}|${b.exam_date}`;
       secDayCount.set(dayKey, (secDayCount.get(dayKey) || 0) + 1);
       if (b.exam_date) {
-        const days = secDays.get(b.section_id) || new Set<string>();
+        const days = secDays.get(b.section_id) || new Set();
         days.add(b.exam_date);
         secDays.set(b.section_id, days);
       }
@@ -104,21 +104,19 @@ export function buildSchedule(inp: any) {
       }
     }
   }
-  const deptIds: string[] = [
-    ...new Set<string>(programs.map((p: any) => p.department_id)),
-  ].sort();
-  const progById = new Map<string, any>(programs.map((p: any) => [p.id, p]));
+  const deptIds = [...new Set(programs.map((p) => p.department_id))].sort();
+  const progById = new Map(programs.map((p) => [p.id, p]));
   // Rooms each department already uses, so the next room is placed beside them.
-  const deptRooms = new Map<string, { id: string; floor: string; n: number }[]>();
-  const roomNum = (r: any) => parseInt(String(r.name).replace(/\D/g, ""), 10) || 0;
-  const maxCap = ignoreCapacity ? Infinity : Math.max(0, ...rooms.map((r: any) => r.capacity));
-  const floorIdx = (f: string) => FLOORS.indexOf(f);
-  const free = (set: Set<string>, id: string, d: string, slots: string[]) =>
+  const deptRooms = new Map();
+  const roomNum = (r) => parseInt(String(r.name).replace(/\D/g, ""), 10) || 0;
+  const maxCap = ignoreCapacity ? Infinity : Math.max(0, ...rooms.map((r) => r.capacity));
+  const floorIdx = (f) => FLOORS.indexOf(f);
+  const free = (set, id, d, slots) =>
     slots.every((t) => !set.has(`${id}|${d}|${t}`));
 
-  const rows: any[] = [];
+  const rows = [];
   let unscheduled = 0;
-  const fail = (sec: any, sub: any, reason: string) => {
+  const fail = (sec, sub, reason) => {
     rows.push({
       program_id: sec.program_id,
       section_id: sec.id,
@@ -130,23 +128,16 @@ export function buildSchedule(inp: any) {
   };
 
   // Hours that found a room but no proctor are collected here and placed as "to be announced".
-  const leftovers: any[] = [];
+  const leftovers = [];
 
-  function tryPlace(
-    sec: any,
-    prog: any,
-    subs: any[],
-    base: string[],
-    home: "AM" | "PM",
-    allowTba: boolean,
-  ): boolean {
+  function tryPlace(sec, prog, subs, base, home, allowTba) {
     const n = subs.length;
-    const used = secDays.get(sec.id) || new Set<string>();
+    const used = secDays.get(sec.id) || new Set();
     const days = [
       ...base.filter((d) => !used.has(d)),
       ...base.filter((d) => used.has(d)),
     ];
-    for (const blk of [home, home === "AM" ? "PM" : "AM"] as ("AM" | "PM")[]) {
+    for (const blk of [home, home === "AM" ? "PM" : "AM"]) {
       for (const d of days) {
         if ((secDayCount.get(`${sec.id}|${d}`) || 0) + n > MAX_PER_DAY)
           continue;
@@ -160,13 +151,13 @@ export function buildSchedule(inp: any) {
           const homeFloor = floorIdx(prog.floor);
           const usedRooms = deptRooms.get(dept) || [];
           // Distance to the nearest room this department already uses (floor first, then room number).
-          const gap = (r: any) =>
+          const gap = (r) =>
             usedRooms.length
               ? Math.min(...usedRooms.map((u) => Math.abs(floorIdx(u.floor) - floorIdx(r.floor)) * 1000 + Math.abs(u.n - roomNum(r))))
               : 0;
           const room = rooms
-            .filter((r: any) => (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
-            .sort((a: any, b: any) =>
+            .filter((r) => (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
+            .sort((a, b) =>
               // 1) the program's own floor, then the nearest floors
               Math.abs(floorIdx(a.floor) - homeFloor) - Math.abs(floorIdx(b.floor) - homeFloor) ||
               // 2) keep the section in the room it already uses
@@ -180,9 +171,9 @@ export function buildSchedule(inp: any) {
           const dayPro = secDayProc.get(`${sec.id}|${d}`);
           const allSlots = [...SLOTS.AM, ...SLOTS.PM];
           // How many of the day's hours this proctor is free for (8 = whole day).
-          const dayCover = (p: any) =>
+          const dayCover = (p) =>
             allSlots.filter((t) => isFree(avail.get(p.id), d, t) && !procUsed.has(`${p.id}|${d}|${t}`)).length;
-          let cands = proctors.filter((p: any) => {
+          let cands = proctors.filter((p) => {
             const bound = procDaySec.get(`${p.id}|${d}`);
             return (!bound || bound === sec.id) &&
               free(procUsed, p.id, d, slots) &&
@@ -190,7 +181,7 @@ export function buildSchedule(inp: any) {
           });
           if (dayPro) {
             // This section already has a proctor today: keep the same person for the day.
-            const same = cands.filter((p: any) => p.id === dayPro);
+            const same = cands.filter((p) => p.id === dayPro);
             if (same.length) cands = same;
             else if (!allowTba) continue;
             else cands = [];
@@ -198,10 +189,10 @@ export function buildSchedule(inp: any) {
           if (!cands.length && !allowTba) continue;
           if (!usedRooms.some((u) => u.id === room.id))
             deptRooms.set(dept, [...usedRooms, { id: room.id, floor: room.floor, n: roomNum(room) }]);
-          const had = secProctors.get(sec.id) || new Set<string>();
-          const pr: any = cands.length
-            ? shuffle<any>(cands).sort(
-                (a: any, b: any) =>
+          const had = secProctors.get(sec.id) || new Set();
+          const pr = cands.length
+            ? shuffle(cands).sort(
+                (a, b) =>
                   dayCover(b) - dayCover(a) ||
                   Number(had.has(b.id)) - Number(had.has(a.id)) ||
                   Number(b.department_id === prog.department_id) - Number(a.department_id === prog.department_id) ||
@@ -247,13 +238,7 @@ export function buildSchedule(inp: any) {
     return false;
   }
 
-  function place(
-    sec: any,
-    prog: any,
-    subs: any[],
-    base: string[],
-    home: "AM" | "PM",
-  ) {
+  function place(sec, prog, subs, base, home) {
     if (tryPlace(sec, prog, subs, base, home, false)) return;
     if (subs.length > 1) {
       const h = Math.ceil(subs.length / 2);
@@ -262,16 +247,15 @@ export function buildSchedule(inp: any) {
     } else leftovers.push({ sec, prog, subs, base, home });
   }
 
-  const batches: any[] = [];
+  const batches = [];
   for (const sec of sections) {
     const prog = progById.get(sec.program_id);
     const subs = subjects.filter(
-      (s: any) =>
-        s.program_id === sec.program_id && s.year_level === sec.year_level,
+      (s) => s.program_id === sec.program_id && s.year_level === sec.year_level,
     );
     if (!subs.length) continue;
     if (sec.student_count > maxCap) {
-      subs.forEach((s: any) =>
+      subs.forEach((s) =>
         fail(sec, s, `No room can hold ${sec.student_count} students`),
       );
       continue;
@@ -283,11 +267,11 @@ export function buildSchedule(inp: any) {
       Math.max(K, Math.ceil(subs.length / MAX_PER_DAY)),
     );
     const off = (deptIds.indexOf(prog.department_id) * K) % dates.length;
-    const pref: string[] = Array.from(
+    const pref = Array.from(
       { length: nDays },
       (_, j) => dates[(off + j) % dates.length],
     );
-    const rest = dates.filter((d: string) => !pref.includes(d));
+    const rest = dates.filter((d) => !pref.includes(d));
     const per = Math.floor(subs.length / nDays);
     const extra = subs.length % nDays;
     let at = 0;

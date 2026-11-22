@@ -374,7 +374,7 @@ nav a.active, aside, aside:hover, aside:focus-within { box-shadow: none !importa
 @media (max-width: 600px) {
   .hint, .pagehead .sub, .card > .bar + p.muted, .card > .row > .muted { display: none; }
   .tipcard { padding: 12px 14px; }
-  .tipcard p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; }
+  .tipcard p { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; }
 }
 .mlist { display: flex; flex-direction: column; gap: 8px; }
 .mrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; background: var(--ice-faint);
@@ -479,3 +479,13 @@ nav a.active, aside, aside:hover, aside:focus-within { box-shadow: none !importa
 .winchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--white); border: 1px solid var(--line); color: var(--link); font-weight: 500; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .winchip button { padding: 0 7px; background: transparent; border: none; color: var(--muted); font-size: 16px; line-height: 1.2; border-radius: 50%; }
 .winchip button:hover { background: var(--red-soft); color: var(--red); }
+
+/* ===== login: single centered card ===== */
+.auth.solo { grid-template-columns: 1fr; place-items: center; }
+.auth-center { position: relative; z-index: 1; width: 100%; max-width: 430px; padding: 28px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.brand { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: #fff; }
+.brand h1 { margin: 6px 0 0; font-size: 40px; line-height: 1; font-weight: 600; letter-spacing: .5px; color: #fff; }
+.brand small { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--ice); opacity: .85; }
+.brand .logomark img { filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .35)); }
+.auth.solo .auth-card { padding: 34px 32px 28px; }
