@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -n api,web \"tsx watch server/dev.ts\" \"vite\"",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
