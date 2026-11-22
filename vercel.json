@@ -1,10 +1,12 @@
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist",
+  "regions": ["sin1"],
   "functions": {
-    "api/**": { "includeFiles": "public/logo.png" },
-    "api/schedule.ts": { "maxDuration": 60 },
-    "api/assistant.ts": { "maxDuration": 30 }
+    "api/**/*.ts": {
+      "maxDuration": 60,
+      "includeFiles": "public/logo.png"
+    }
   },
   "headers": [{
     "source": "/(.*)",
