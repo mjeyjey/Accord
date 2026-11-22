@@ -156,7 +156,7 @@ export default function Requests() {
                                 {r.start}-{r.end}
                               </time>
                               <span className="muted">Room {r.room}</span>
-                              <span className="muted">
+                              <span className="muted mhide">
                                 · closes {closesIn(r.closes_at)}
                               </span>
                             </div>

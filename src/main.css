@@ -522,3 +522,38 @@ button[aria-busy="true"] { pointer-events: none; }
 .tour-actions .grow { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .tour-hole, .tour-card { transition: none; } }
 
+
+
+/* ===== tab scroller sign ===== */
+.tabswrap { position: relative; margin-bottom: 18px; max-width: 100%; }
+.tabswrap .tabs { margin-bottom: 0; scrollbar-width: none; }
+.tabswrap .tabs::-webkit-scrollbar { display: none; }
+.tabedge { position: absolute; top: 1px; bottom: 1px; width: 46px; display: flex; align-items: center;
+  color: var(--muted); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.tabedge.show { opacity: 1; }
+.tabedge.r { right: 1px; justify-content: flex-end; padding-right: 10px; border-radius: 0 999px 999px 0;
+  background: linear-gradient(90deg, transparent, var(--white) 65%); }
+.tabedge.l { left: 1px; justify-content: flex-start; padding-left: 10px; border-radius: 999px 0 0 999px;
+  background: linear-gradient(270deg, transparent, var(--white) 65%); }
+
+/* ===== phone declutter: keep only the important info ===== */
+.mhide { display: inline; }
+@media (max-width: 600px) {
+  .mhide, .help, .hint, .tipcard, .progbar,
+  .yearcard > .chips, .yc-meta,
+  .card > .bar > .badge.blue,
+  .batch .bmain .muted,
+  .pagehead .sub { display: none !important; }
+
+  .card-head { margin-bottom: 6px; }
+  .pstats { gap: 6px; width: 100%; }
+  .pstats div { flex: 1; min-width: 0; padding: 10px 6px; }
+  .phero { padding: 16px; gap: 12px; }
+  .phero h3 { font-size: 22px; }
+  .yearcard { padding: 12px 14px; gap: 6px; }
+  .yc-head h4 { font-size: 20px; }
+  .daylist li { padding: 8px 10px; }
+  .dl-top .muted { font-size: 12px; }
+  .ntext span { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .bhead { gap: 4px; }
+}

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, t5 } from "../lib/api";
-import { Avatar, Badge, Help, Skeleton, TableSkeleton } from "../components/ui";
+import { Avatar, Badge, Help, Modal, Skeleton, TableSkeleton } from "../components/ui";
+import MRow from "../components/MRow";
+import { useMobile } from "../lib/useMobile";
 import { useMe } from "../lib/me";
 import { AreaChart, BarChart, Donut } from "../components/Charts";
 import Icon from "../components/icons";
@@ -32,6 +34,8 @@ export default function Overview() {
   const [view, setView] = useState("");
   const me = useMe();
   const [pf, setPf] = useState("available");
+  const mobile = useMobile();
+  const [det, setDet] = useState(null);
   const load = async () => {
     try {
       const [schedules, rooms, availability, profiles] = await Promise.all([
@@ -431,53 +435,67 @@ export default function Overview() {
               text="Exams where the assigned proctor reported an emergency. Click 'Find replacement' to pick a proctor who is free for those hours."
             />
           </div>
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Section</th>
-                  <th>Proctor</th>
-                  <th>Note</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {flagged.map((s) => (
-                  <tr key={s.id} className="danger">
-                    <td>{s.exam_date}</td>
-                    <td>{t5(s.start_time)}</td>
-                    <td>
-                      {s.program?.code} Y{s.section?.year_level}
-                      {s.section?.name}
-                    </td>
-                    <td>
-                      <span
-                        className="who-link"
-                        onClick={() => setView(s.proctor_id)}
-                      >
-                        {s.proctor?.full_name}
-                      </span>
-                    </td>
-                    <td>{s.emergency_note}</td>
-                    <td className="actions">
-                      <button className="sm" onClick={() => setRep(s.id)}>
-                        Find replacement
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!flagged.length && (
+          {mobile ? (
+            <div className="mlist">
+              {flagged.map((s) => (
+                <MRow key={s.id} danger
+                  title={`${s.program?.code} ${s.section?.year_level}${s.section?.name}`}
+                  sub={`${short(s.exam_date)} · ${t5(s.start_time)} · ${s.proctor?.full_name || ""}`}
+                  onTap={() => setDet({ kind: "emg", s })}
+                  onHold={() => setRep(s.id)} />
+              ))}
+              {!flagged.length && <p className="empty">No emergencies flagged. All good.</p>}
+              {flagged.length > 0 && <p className="mobhint">Tap for details · hold to find a replacement</p>}
+            </div>
+          ) : (
+            <div className="scroll">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={6} className="empty">
-                      No emergencies flagged. All good.
-                    </td>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Section</th>
+                    <th>Proctor</th>
+                    <th>Note</th>
+                    <th />
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {flagged.map((s) => (
+                    <tr key={s.id} className="danger">
+                      <td>{s.exam_date}</td>
+                      <td>{t5(s.start_time)}</td>
+                      <td>
+                        {s.program?.code} Y{s.section?.year_level}
+                        {s.section?.name}
+                      </td>
+                      <td>
+                        <span
+                          className="who-link"
+                          onClick={() => setView(s.proctor_id)}
+                        >
+                          {s.proctor?.full_name}
+                        </span>
+                      </td>
+                      <td>{s.emergency_note}</td>
+                      <td className="actions">
+                        <button className="sm" onClick={() => setRep(s.id)}>
+                          Find replacement
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!flagged.length && (
+                    <tr>
+                      <td colSpan={6} className="empty">
+                        No emergencies flagged. All good.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="card" id="available">
@@ -502,65 +520,108 @@ export default function Overview() {
               <option value="all">All</option>
             </select>
           </div>
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Proctor</th>
-                  <th>Dept</th>
-                  <th>Dates</th>
-                  <th>Days</th>
-                  <th>Hours</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {availShown.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <div
-                        className="who-cell who-link"
-                        onClick={() => setView(p.id)}
-                      >
-                        <Avatar name={p.name} src={p.avatar} />
-                        {p.name}
-                      </div>
-                    </td>
-                    <td>{p.dept}</td>
-                    <td>
-                      {!p.first
-                        ? "-"
-                        : p.first === p.last
-                          ? short(p.first)
-                          : `${short(p.first)} - ${short(p.last)}`}
-                    </td>
-                    <td>{p.days.size}</td>
-                    <td>{p.hours}</td>
-                    <td>
-                      {p.assigned ? (
-                        <Badge tone="blue">Assigned</Badge>
-                      ) : (
-                        <Badge tone="green">Available</Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {!availShown.length && (
+          {mobile ? (
+            <div className="mlist">
+              {availShown.map((p) => (
+                <MRow key={p.id}
+                  title={p.name}
+                  sub={`${p.dept}${p.days.size ? ` · ${p.days.size} day(s)` : ""}`}
+                  meta={p.assigned ? "Assigned" : "Available"}
+                  onTap={() => setDet({ kind: "proc", p })}
+                  onHold={() => setView(p.id)} />
+              ))}
+              {!availShown.length && <p className="empty">{available.length ? "No proctor matches this filter." : "No proctor has entered availability yet."}</p>}
+              {availShown.length > 0 && <p className="mobhint">Tap for details · hold to open profile</p>}
+            </div>
+          ) : (
+            <div className="scroll">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={6} className="empty">
-                      {available.length
-                        ? "No proctor matches this filter."
-                        : "No proctor has entered availability yet."}
-                    </td>
+                    <th>Proctor</th>
+                    <th>Dept</th>
+                    <th>Dates</th>
+                    <th>Days</th>
+                    <th>Hours</th>
+                    <th>Status</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {availShown.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <div
+                          className="who-cell who-link"
+                          onClick={() => setView(p.id)}
+                        >
+                          <Avatar name={p.name} src={p.avatar} />
+                          {p.name}
+                        </div>
+                      </td>
+                      <td>{p.dept}</td>
+                      <td>
+                        {!p.first
+                          ? "-"
+                          : p.first === p.last
+                            ? short(p.first)
+                            : `${short(p.first)} - ${short(p.last)}`}
+                      </td>
+                      <td>{p.days.size}</td>
+                      <td>{p.hours}</td>
+                      <td>
+                        {p.assigned ? (
+                          <Badge tone="blue">Assigned</Badge>
+                        ) : (
+                          <Badge tone="green">Available</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {!availShown.length && (
+                    <tr>
+                      <td colSpan={6} className="empty">
+                        {available.length
+                          ? "No proctor matches this filter."
+                          : "No proctor has entered availability yet."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
 
       {view && <ProfileView userId={view} onClose={() => setView("")} />}
+      {det && (
+        <Modal title={det.kind === "emg" ? "Proctor emergency" : "Proctor"} onClose={() => setDet(null)}
+          footer={det.kind === "emg"
+            ? <>
+                <button className="ghost" onClick={() => setDet(null)}>Close</button>
+                <button onClick={() => { const id = det.s.id; setDet(null); setRep(id); }}>Find replacement</button>
+              </>
+            : <>
+                <button className="ghost" onClick={() => setDet(null)}>Close</button>
+                <button onClick={() => { const id = det.p.id; setDet(null); setView(id); }}>View profile</button>
+              </>}>
+          {det.kind === "emg" ? [
+            ["Date", short(det.s.exam_date)],
+            ["Time", `${t5(det.s.start_time)}-${t5(det.s.end_time)}`],
+            ["Section", `${det.s.program?.code} Y${det.s.section?.year_level}${det.s.section?.name}`],
+            ["Proctor", det.s.proctor?.full_name],
+            ["Note", det.s.emergency_note || "-"],
+          ].map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)
+          : [
+            ["Name", det.p.name],
+            ["Department", det.p.dept],
+            ["Dates", !det.p.first ? "-" : det.p.first === det.p.last ? short(det.p.first) : `${short(det.p.first)} - ${short(det.p.last)}`],
+            ["Days", det.p.days.size],
+            ["Hours", det.p.hours],
+            ["Status", det.p.assigned ? "Assigned" : "Available"],
+          ].map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)}
+        </Modal>
+      )}
       {rep && (
         <ReplaceModal
           scheduleId={rep}

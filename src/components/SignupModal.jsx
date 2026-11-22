@@ -10,6 +10,7 @@ export default function SignupModal({ onClose }) {
     password: "",
     confirm: "",
     department_id: "",
+    role: "proctor",
   });
   const [errs, setErrs] = useState({});
   const [err, setErr] = useState("");
@@ -49,6 +50,8 @@ export default function SignupModal({ onClose }) {
       const pwBad = passwordProblem(f.password);
       if (pwBad) er.password = pwBad;
       if (f.confirm !== f.password) er.confirm = "The passwords do not match";
+      if (f.role === "head" && !f.department_id)
+        er.department_id = "Choose the department you lead";
       setErrs(er);
       if (Object.keys(er).length) return;
       setBusy(true);
@@ -71,6 +74,7 @@ export default function SignupModal({ onClose }) {
           full_name: f.full_name,
           email: f.email,
           password: f.password,
+          role: f.role,
           department_id: f.department_id || null,
           code,
         }),
@@ -114,9 +118,7 @@ export default function SignupModal({ onClose }) {
     >
       {step === "done" ? (
         <p className="dlgtext">
-          Your request was sent. An admin or department head will verify that
-          you are a proctor or faculty member. You can log in once it is
-          approved, and we will email you.
+          Your request was sent. An admin {f.role === "head" ? "" : "or department head "}will verify your account. You can log in once it is approved, and we will email you.
         </p>
       ) : (
         <form id="signupform" onSubmit={submit} noValidate>
@@ -124,10 +126,17 @@ export default function SignupModal({ onClose }) {
           {step === "form" ? (
             <>
               <p className="muted" style={{ marginTop: 0 }}>
-                Accounts created here are proctor accounts and need approval
-                before first login.
+                {f.role === "head"
+                  ? "Department head accounts must be approved by an admin before first login."
+                  : "Proctor accounts must be approved by an admin or your department head before first login."}
               </p>
               <div className="fields" style={{ gridTemplateColumns: "1fr" }}>
+                <Field label="I am a *">
+                  <select value={f.role} onChange={(e) => set("role", e.target.value)}>
+                    <option value="proctor">Proctor</option>
+                    <option value="head">Department head</option>
+                  </select>
+                </Field>
                 <Field label="Full name *" error={errs.full_name}>
                   <input
                     value={f.full_name}
@@ -142,17 +151,10 @@ export default function SignupModal({ onClose }) {
                     onChange={(e) => set("email", e.target.value)}
                   />
                 </Field>
-                <Field label="Department">
-                  <select
-                    value={f.department_id}
-                    onChange={(e) => set("department_id", e.target.value)}
-                  >
-                    <option value="">Unassigned</option>
-                    {deps.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.code} - {d.name}
-                      </option>
-                    ))}
+                <Field label={f.role === "head" ? "Department *" : "Department"} error={errs.department_id}>
+                  <select value={f.department_id} onChange={(e) => set("department_id", e.target.value)}>
+                    <option value="">{f.role === "head" ? "Select department" : "Unassigned"}</option>
+                    {deps.map((d) => <option key={d.id} value={d.id}>{d.code} - {d.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Password *" error={errs.password}>

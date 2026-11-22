@@ -8,6 +8,7 @@ import ImportRooms from "../components/ImportRooms";
 import ProctorSchedule from "../components/ProctorSchedule";
 import ProfileView from "../components/ProfileView";
 import AccountApprovals from "../components/AccountApprovals";
+import TabScroller from "../components/TabScroller";
 import { Avatar, Badge, Modal } from "../components/ui";
 import DeptLogo from "../components/DeptLogo";
 import { todayIso } from "../lib/periods";
@@ -204,7 +205,7 @@ export default function Config() {
   return (
     <>
       <h2 style={{ marginBottom: 12 }}></h2>
-      <div className="tabs">
+      <TabScroller>
         {tabs.map((t) => (
           <button
             key={t}
@@ -214,7 +215,7 @@ export default function Config() {
             {t}
           </button>
         ))}
-      </div>
+      </TabScroller>
       {tab !== "Account requests" &&
         (admin || showProg || tab === "Proctors") && (
           <div className="bar">

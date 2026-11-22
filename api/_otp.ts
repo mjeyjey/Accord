@@ -1,7 +1,5 @@
 import nodemailer from "nodemailer";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { db } from "./_lib.js";
 
 const hash = (email: string, purpose: string, code: string) =>
@@ -13,23 +11,19 @@ const mailer = () => nodemailer.createTransport({
   auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
 });
 
-// Logo is embedded in the email itself, so it shows even without a deployed URL.
-let LOGO: Buffer | null = null;
-try { LOGO = readFileSync(join(process.cwd(), "public", "logo.png")); } catch { /* falls back to APP_URL */ }
-const attachments = () => (LOGO ? [{ filename: "logo.png", content: LOGO, cid: "accord-logo" }] : []);
+export const APP_URL = "https://accordlaconcepcioncollege.vercel.app/";
 
 export const sendMail = (to: string, subject: string, text: string, html?: string) =>
-  mailer().sendMail({ from: `"Accord" <${process.env.GMAIL_USER}>`, to, subject, text, html, attachments: attachments() });
+  mailer().sendMail({ from: `"Accord" <${process.env.GMAIL_USER}>`, to, subject, text, html });
 
 export const sendBcc = (bcc: string[], subject: string, text: string, html?: string) =>
-  mailer().sendMail({ from: `"Accord" <${process.env.GMAIL_USER}>`, to: process.env.GMAIL_USER, bcc, subject, text, html, attachments: attachments() });
+  mailer().sendMail({ from: `"Accord" <${process.env.GMAIL_USER}>`, to: process.env.GMAIL_USER, bcc, subject, text, html });
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
 export function emailLayout(o: { preheader: string; heading: string; intro: string; code?: string; note?: string; to?: string }) {
-  const base = (process.env.APP_URL || "").replace(/\/$/, "");
-  const src = LOGO ? "cid:accord-logo" : base ? `${base}/logo.png` : "";
-  const logo = src ? `<td style="padding-right:12px"><img src="${src}" width="44" height="44" alt="" style="display:block;border:0"></td>` : "";
+  const src = `${APP_URL}logo.png`;
+  const logo = `<td style="padding-right:12px"><img src="${src}" width="44" height="44" alt="" style="display:block;border:0"></td>`;
   const code = o.code
     ? `<tr><td align="center" style="padding:6px 0 22px"><div style="display:inline-block;padding:16px 26px 16px 36px;background:#F4F8FE;border:1.5px solid #D5E0F0;border-radius:14px;font:700 34px/1 'Courier New',monospace;letter-spacing:10px;color:#0A1B3F">${esc(o.code)}</div></td></tr>` : "";
   return `<!doctype html><html><body style="margin:0;padding:0;background:#EEF3FA">

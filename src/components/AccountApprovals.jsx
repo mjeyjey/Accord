@@ -16,7 +16,7 @@ export default function AccountApprovals({ onChange }) {
           r.filter(
             (x) =>
               x.status === "pending" &&
-              (me.role === "admin" || x.department_id === me.department_id),
+              (me.role === "admin" || (x.role === "proctor" && x.department_id === me.department_id)),
           ),
         ),
       )
@@ -78,6 +78,7 @@ export default function AccountApprovals({ onChange }) {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Role</th>
                 <th>Department</th>
                 <th>Requested</th>
                 <th />
@@ -88,6 +89,7 @@ export default function AccountApprovals({ onChange }) {
                 <tr key={r.id}>
                   <td>{r.full_name}</td>
                   <td>{r.email}</td>
+                  <td><Badge tone={r.role === "head" ? "green" : "blue"}>{r.role === "head" ? "Dept head" : "Proctor"}</Badge></td>
                   <td>{r.department?.code || "Unassigned"}</td>
                   <td>
                     {r.created_at
@@ -116,7 +118,7 @@ export default function AccountApprovals({ onChange }) {
               ))}
               {!rows.length && (
                 <tr>
-                  <td colSpan={5} className="empty">
+                  <td colSpan={6} className="empty">
                     No pending requests.
                   </td>
                 </tr>

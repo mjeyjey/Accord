@@ -1,5 +1,5 @@
 import { db } from "./_lib.js";
-import { emailLayout, sendBcc } from "./_otp.js";
+import { emailLayout, sendBcc, APP_URL } from "./_otp.js";
 
 export interface Note { user_id: string; kind: string; title: string; body?: string | null; mail?: string }
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
@@ -27,13 +27,12 @@ export async function notify(notes: Note[]) {
       g.to.push(to);
       groups.set(k, g);
     }
-    const base = (process.env.APP_URL || "").replace(/\/$/, "");
     for (const { n, to } of groups.values()) {
       const text = n.mail ?? n.body ?? "";
       const html = emailLayout({
         preheader: n.title, heading: n.title,
         intro: esc(text).replace(/\n/g, "<br>"),
-        note: base ? `Open <a href="${base}">Accord</a> to see the details.` : "You can see the details in Accord.",
+        note: `Open <a href="${APP_URL}">Accord</a> to see the details.`,
       });
       for (let i = 0; i < to.length; i += 40)
         await sendBcc(to.slice(i, i + 40), n.title, `${n.title}\n\n${text}\n\nLa Concepcion College`, html)
