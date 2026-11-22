@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "./_lib";
-import { checkOtp } from "./_otp";
-import { passwordProblem } from "./_password";
-import { notify } from "./_notify";
+import { db } from "./_lib.js";
+import { checkOtp } from "./_otp.js";
+import { passwordProblem } from "./_password.js";
+import { notify } from "./_notify.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {

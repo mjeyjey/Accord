@@ -2,6 +2,7 @@
   "name": "exam-scheduler",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "concurrently -n api,web \"tsx watch server/dev.ts\" \"vite\"",
     "build": "tsc && vite build",

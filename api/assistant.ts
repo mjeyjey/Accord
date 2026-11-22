@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db, authenticate, fetchAll, manilaToday, acceptClosed, cutoffHours, type Me, type Role } from "./_lib";
-import { SLOTS, groupAvail, isFree, hhmm, endOf, MAX_PER_DAY } from "./_scheduler";
-import { geminiEnabled, generate } from "./_gemini";
+import { db, authenticate, fetchAll, manilaToday, acceptClosed, cutoffHours, type Me, type Role } from "./_lib.js";
+import { SLOTS, groupAvail, isFree, hhmm, endOf, MAX_PER_DAY } from "./_scheduler.js";
+import { geminiEnabled, generate } from "./_gemini.js";
 
 // Keyword-based assistant. All answers come from this app's data or the built-in guide;
 // this endpoint does not call an external AI service.

@@ -1,9 +1,11 @@
+// api/db.ts
+
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db, authenticate, log, fetchAll, toTrash, restore, closeEndedPeriods, manilaToday, clearAuthCache, Me, Role } from "./_lib";
-import { sendMail, emailLayout } from "./_otp";
-import { endOf, hhmm, MAX_PER_DAY } from "./_scheduler";
-import { passwordProblem } from "./_password";
-import { notify } from "./_notify";
+import { db, authenticate, log, fetchAll, toTrash, restore, closeEndedPeriods, manilaToday, clearAuthCache, Me, Role } from "./_lib.js";
+import { sendMail, emailLayout } from "./_otp.js";
+import { endOf, hhmm, MAX_PER_DAY } from "./_scheduler.js";
+import { passwordProblem } from "./_password.js";
+import { notify } from "./_notify.js";
 
 const ALL: Role[] = ["admin", "head", "proctor"];
 const MGR: Role[] = ["admin", "head"];
@@ -244,6 +246,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const patch: any = {};
       if (typeof b.full_name === "string" && b.full_name.trim()) patch.full_name = b.full_name.trim();
       if ("avatar_url" in b) patch.avatar_url = b.avatar_url || null;
+      if (b.tour_seen === true) patch.tour_seen_at = new Date().toISOString();
       const { data, error } = await db.from("profiles").update(patch).eq("id", me.id).select().single();
       if (error) return res.status(400).json({ error: error.message });
       clearAuthCache(me.id);

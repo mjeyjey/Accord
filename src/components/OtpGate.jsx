@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, setRemember as keepLogin } from "../lib/supabase";
 import { api } from "../lib/api";
 import { LogoMark } from "./Logo";
 import { Field, useLock } from "./ui";
 export default function OtpGate({ onVerified, onCancel }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [trust, setTrust] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [wait, setWait] = useState(0);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,7 +43,8 @@ export default function OtpGate({ onVerified, onCancel }) {
     setBusy(true);
     setErr("");
     try {
-      await api.otp({ action: "verify_login", code, trust });
+      await api.otp({ action: "verify_login", code, remember });
+      if (remember) keepLogin(true);
       onVerified();
     } catch (e) {
       setErr(e.message);
@@ -92,10 +93,10 @@ export default function OtpGate({ onVerified, onCancel }) {
           >
             <input
               type="checkbox"
-              checked={trust}
-              onChange={(e) => setTrust(e.target.checked)}
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
             />
-            Trust this device for 14 days (skip the code next time)
+            Remember this device for 7 days
           </label>
           <button type="submit" disabled={busy || locked} aria-busy={locked}>
             {busy ? "Verifying…" : "Verify"}

@@ -6,6 +6,7 @@ import scheduleRoute from '../api/schedule';
 import signupRoute from '../api/signup';
 import otpRoute from '../api/otp';
 import assistantRoute from '../api/assistant';
+import chatRoute from '../api/chat';
 
 const routes: Record<string, any> = {
   '/api/db': dbRoute,
@@ -13,6 +14,7 @@ const routes: Record<string, any> = {
   '/api/signup': signupRoute,
   '/api/otp': otpRoute,
   '/api/assistant': assistantRoute,
+  '/api/chat': chatRoute,
 };
 
 http.createServer(async (req: any, res: any) => {

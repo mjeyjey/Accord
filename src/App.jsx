@@ -27,6 +27,8 @@ import NotificationPanel from "./components/NotificationPanel";
 import OtpGate from "./components/OtpGate";
 import BulletinPanel from "./components/BulletinPanel";
 import AssistantPanel from "./components/AssistantPanel";
+import ChatPanel from "./components/ChatPanel";
+import Tour from "./components/Tour";
 const TITLES = {
   "/": "Dashboard",
   "/periods": "Exam periods",
@@ -54,12 +56,20 @@ export default function App() {
   const [bulls, setBulls] = useState([]);
   const [showBull, setShowBull] = useState(false);
   const [showBot, setShowBot] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  const [tourOn, setTourOn] = useState(false);
   const [seenTs, setSeenTs] = useState(0);
   const [bullSince, setBullSince] = useState(0);
   const seen = useRef(null);
   useEffect(() => {
     if (me)
       setSeenTs(Number(localStorage.getItem(`accord-bull-${me.id}`) || 0));
+  }, [me?.id]);
+  useEffect(() => {
+    if (!me || me.tour_seen_at) return;
+    const t = setTimeout(() => setTourOn(true), 700);
+    return () => clearTimeout(t);
   }, [me?.id]);
   useEffect(() => {
     if (!me) {
@@ -76,6 +86,9 @@ export default function App() {
           .then((b) => {
             if (!stop) setBulls(b);
           })
+          .catch(() => {});
+        api.get("chat?action=unread")
+          .then((r) => { if (!stop) setChatUnread(r.count); })
           .catch(() => {});
         const list = await api.list("notifications");
         if (stop) return;
@@ -203,17 +216,6 @@ export default function App() {
               : n.kind === "approval"
                 ? "/config?tab=Account%20requests"
                 : null;
-  const openBullPanel = () => {
-    if (!showBull) {
-      const now = Date.now();
-      setBullSince(seenTs);
-      setSeenTs(now);
-      localStorage.setItem(`accord-bull-${me.id}`, String(now));
-    }
-    setShowNotes(false);
-    setShowBot(false);
-    setShowBull(true);
-  };
   const openNote = (n) => {
     if (!n.read) {
       setNotes((l) => l.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
@@ -232,27 +234,17 @@ export default function App() {
   const newBull = bulls.filter(
     (b) => new Date(b.created_at).getTime() > seenTs,
   ).length;
-  const toggleNotes = () => {
-    setShowBull(false);
-    setShowBot(false);
-    setShowNotes(!showNotes);
+  const closeAll = () => { setShowNotes(false); setShowBull(false); setShowBot(false); setShowChat(false); };
+  const markBullSeen = () => {
+    const now = Date.now();
+    setBullSince(seenTs); setSeenTs(now);
+    localStorage.setItem(`accord-bull-${me.id}`, String(now));
   };
-  const toggleBull = () => {
-    if (!showBull) {
-      const now = Date.now();
-      setBullSince(seenTs);
-      setSeenTs(now);
-      localStorage.setItem(`accord-bull-${me.id}`, String(now));
-    }
-    setShowNotes(false);
-    setShowBot(false);
-    setShowBull(!showBull);
-  };
-  const toggleBot = () => {
-    setShowNotes(false);
-    setShowBull(false);
-    setShowBot(!showBot);
-  };
+  const openBullPanel = () => { if (!showBull) markBullSeen(); closeAll(); setShowBull(true); };
+  const toggleNotes = () => { const next = !showNotes; closeAll(); setShowNotes(next); };
+  const toggleBull = () => { if (!showBull) markBullSeen(); const next = !showBull; closeAll(); setShowBull(next); };
+  const toggleBot = () => { const next = !showBot; closeAll(); setShowBot(next); };
+  const toggleChat = () => { const next = !showChat; closeAll(); setShowChat(next); };
   const goFromBot = (to) => {
     nav(to);
     if (window.innerWidth <= 900) setShowBot(false);
@@ -270,6 +262,11 @@ export default function App() {
         api.update("notifications", n.id, { read: true }).catch(() => {}),
       );
     setNotes((l) => l.map((x) => ({ ...x, read: true })));
+  };
+  const finishTour = () => {
+    setTourOn(false);
+    setMe((m) => (m ? { ...m, tour_seen_at: new Date().toISOString() } : m));
+    api.patchMe({ tour_seen: true }).catch(() => {});
   };
   const manager = me.role !== "proctor";
   const links = manager
@@ -293,14 +290,14 @@ export default function App() {
   });
   return (
     <MeCtx.Provider value={me}>
-      <div className={`layout ${showNotes || showBull || showBot ? "np" : ""}`}>
+      <div className={`layout ${showNotes || showBull || showBot || showChat ? "np" : ""}`}>
         <aside>
           <a href="/" className="logolink" aria-label="Go to dashboard">
             <Logo light />
           </a>
           <nav>
             {links.map(([to, label, icon]) => (
-              <NavLink key={to} to={to} end={to === "/"} aria-label={label}>
+              <NavLink key={to} to={to} end={to === "/"} aria-label={label} data-tour={`nav-${to}`}>
                 <Icon name={icon} />
                 <span className="lbl">{label}</span>
                 {to === "/requests" && openReq > 0 && (
@@ -313,6 +310,7 @@ export default function App() {
             <button
               className="navbtn"
               aria-label="Settings"
+              data-tour="settings"
               onClick={() => setShowPw(true)}
             >
               <Icon name="settings" />
@@ -347,6 +345,7 @@ export default function App() {
           onOpen={openBull}
           onChanged={refreshBulls}
         />
+        <ChatPanel open={showChat} onClose={() => setShowChat(false)} onUnread={setChatUnread} />
         <AssistantPanel
           key={me.id}
           open={showBot}
@@ -357,8 +356,9 @@ export default function App() {
         />
         {!showBot && (
           <button
-            className={`botfab ${showNotes || showBull ? "shift" : ""}`}
+            className={`botfab ${showNotes || showBull || showChat ? "shift" : ""}`}
             aria-label="Open assistant"
+            data-tour="assistant"
             onClick={toggleBot}
           >
             <Icon name="chat" size={24} />
@@ -378,14 +378,20 @@ export default function App() {
                 className="bell"
                 aria-label="Bulletin"
                 title="Bulletin"
+                data-tour="bulletin"
                 onClick={toggleBull}
               >
                 <Icon name="megaphone" />
                 {newBull > 0 && <i className="dot" />}
               </button>
+              <button className="bell" aria-label="Messages" title="Messages" data-tour="chat" onClick={toggleChat}>
+                <Icon name="message" />
+                {chatUnread > 0 && <i className="dot" />}
+              </button>
               <button
                 className="bell"
                 aria-label="Notifications"
+                data-tour="notifications"
                 onClick={toggleNotes}
               >
                 <Icon name="bell" />
@@ -393,6 +399,7 @@ export default function App() {
               </button>
               <button
                 className="chip-user"
+                data-tour="profile"
                 onClick={() => setShowProfile(true)}
                 title="Edit your profile"
               >
@@ -447,6 +454,7 @@ export default function App() {
           onEmailChanged={(email) => setMe({ ...me, email })}
         />
       )}
+      {tourOn && <Tour role={me.role} onClose={finishTour} />}
     </MeCtx.Provider>
   );
 }

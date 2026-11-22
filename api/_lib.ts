@@ -19,9 +19,9 @@ export async function userFromToken(req: VercelRequest) {
   return { id: data.user.id, email: data.user.email || '', sid };
 }
 
-export const TRUST_DAYS = 14;
+export const TRUST_DAYS = 7;
 export const SESSION_HOURS = 24;
-export const sessionExpiry = () => new Date(Date.now() + SESSION_HOURS * 3600000).toISOString();
+export const sessionExpiry = (hours = SESSION_HOURS) => new Date(Date.now() + hours * 3600000).toISOString();
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 // Trusted-device tokens are stored in HttpOnly cookies so JavaScript cannot read them.

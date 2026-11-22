@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
-import { db, authenticate, userFromToken, clearAuthCache, setCookie, sha256, sessionExpiry, TRUST_DAYS, log } from "./_lib";
-import { sendOtp, checkOtp } from "./_otp";
-import { passwordProblem } from "./_password";
+import { db, authenticate, userFromToken, clearAuthCache, setCookie, readCookie, sha256, sessionExpiry, SESSION_HOURS, TRUST_DAYS, log } from "./_lib.js";
+import { sendOtp, checkOtp } from "./_otp.js";
+import { passwordProblem } from "./_password.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).end();
@@ -58,9 +58,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const u = await userFromToken(req);
       if (!u || !u.sid) return res.status(401).json({ error: "Not signed in" });
       await checkOtp(u.email, "login", String(b.code || ""));
-      const { error } = await db.from("otp_sessions").upsert({ session_id: u.sid, user_id: u.id, expires_at: sessionExpiry() });
+      const remember = !!(b.remember ?? b.trust);
+      const { error } = await db.from("otp_sessions").upsert({
+        session_id: u.sid, user_id: u.id,
+        expires_at: sessionExpiry(remember ? TRUST_DAYS * 24 : SESSION_HOURS),
+      });
       if (error) throw error;
-      if (b.trust) {
+      if (remember) {
         const token = randomBytes(32).toString("base64url");
         await db.from("trusted_devices").delete().eq("user_id", u.id).lt("expires_at", new Date().toISOString());
         const { error: e2 } = await db.from("trusted_devices").insert({
@@ -71,13 +75,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (e2) throw e2;
         setCookie(req, res, `td_${u.id}`, token, TRUST_DAYS * 86400);
       }
-      return res.json({ ok: true, trusted: !!b.trust });
+      return res.json({ ok: true, remembered: remember });
     }
 
-    // Logout: end only this login session; keep this device's trust cookie.
+    // Logout: end this login session AND forget this device.
     if (b.action === "logout") {
       const u = await userFromToken(req);
       if (u) {
+        const raw = readCookie(req, `td_${u.id}`);
+        if (raw) await db.from("trusted_devices").delete().eq("user_id", u.id).eq("token_hash", sha256(raw));
+        setCookie(req, res, `td_${u.id}`, "", 0);
         await db.from("otp_sessions").delete().eq("session_id", u.sid);
         clearAuthCache(u.id);
       }

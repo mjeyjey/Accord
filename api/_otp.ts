@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import { createHmac, randomInt, timingSafeEqual } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { db } from "./_lib";
+import { db } from "./_lib.js";
 
 const hash = (email: string, purpose: string, code: string) =>
   createHmac("sha256", process.env.OTP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!)

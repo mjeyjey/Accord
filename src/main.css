@@ -1,8 +1,3 @@
-/* =========================================================
-   Dashboard-style redesign. Loaded AFTER styles.css, so it only
-   overrides looks. No markup behaviour or features are touched.
-   ========================================================= */
-
 /* ---------- tokens ---------- */
 :root {
   --font: 'Poppins', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -503,3 +498,27 @@ button[aria-busy="true"]::after {
   to { transform: rotate(360deg); }
 }
 button[aria-busy="true"] { pointer-events: none; }
+
+/* chat */
+.np-head h3 .avatar { width: 34px; height: 34px; }
+.cprev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.cbadge { flex: none; align-self: center; min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center;
+  border-radius: 999px; background: #EF4444; color: #fff; font-size: 11px; font-weight: 600; }
+.nitem .avatar { flex: none; }
+.cday { align-self: center; color: var(--muted); font-size: 11px; margin: 4px 0; }
+.msg small.mt { display: block; margin-top: 3px; font-size: 10.5px; opacity: .7; text-align: right; }
+
+/* tour */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-dim { position: absolute; inset: 0; background: rgba(10, 16, 40, .62); }
+.tour-hole { position: absolute; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(10, 16, 40, .62); outline: 2px solid var(--teal);
+  pointer-events: none; transition: left .25s, top .25s, width .25s, height .25s; }
+.tour-card { position: absolute; width: min(340px, calc(100vw - 16px)); padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--white); border-radius: 22px; box-shadow: var(--shadow-lg); transition: left .25s, top .25s; }
+.tour-card small { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+.tour-card h4 { margin: 0; font-size: 19px; }
+.tour-card p { margin: 0; color: var(--ink); font-size: 13.5px; }
+.tour-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tour-actions .grow { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .tour-hole, .tour-card { transition: none; } }
+

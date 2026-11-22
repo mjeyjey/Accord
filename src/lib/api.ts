@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export interface Me { id: string; full_name: string; role: 'admin' | 'head' | 'proctor'; department_id: string | null; department?: { code: string; name: string } | null; email?: string | null; avatar_url?: string | null; status?: string }
+export interface Me { id: string; full_name: string; role: 'admin' | 'head' | 'proctor'; department_id: string | null; department?: { code: string; name: string } | null; email?: string | null; avatar_url?: string | null; tour_seen_at?: string | null; status?: string }
 
 async function call<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const { data } = await supabase.auth.getSession();
@@ -20,6 +20,7 @@ async function call<T = any>(path: string, method = 'GET', body?: unknown): Prom
 
 export const api = {
   get: <T = any>(path: string) => call<T>(path),
+  post: <T = any>(path: string, body: unknown) => call<T>(path, 'POST', body),
   list: (table: string) => call<any[]>(`db?table=${table}`),
   create: (table: string, row: any) => call(`db?table=${table}`, 'POST', row),
   update: (table: string, id: string, row: any) => call(`db?table=${table}&id=${id}`, 'PATCH', row),

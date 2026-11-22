@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db, authenticate, log, fetchAll, toTrash, acceptClosed, cutoffHours, manilaToday } from "./_lib";
-import { notify } from "./_notify";
+import { db, authenticate, log, fetchAll, toTrash, acceptClosed, cutoffHours, manilaToday } from "./_lib.js";
+import { notify } from "./_notify.js";
 import {
   buildSchedule,
   examDates,
@@ -11,7 +11,7 @@ import {
   isFree,
   SLOTS,
   MAX_PER_DAY,
-} from "./_scheduler";
+} from "./_scheduler.js";
 
 // A "batch" = one section's back-to-back exams on one day with one proctor.
 const batchOf = (s: any) =>

@@ -1,5 +1,5 @@
-import { db } from "./_lib";
-import { emailLayout, sendBcc } from "./_otp";
+import { db } from "./_lib.js";
+import { emailLayout, sendBcc } from "./_otp.js";
 
 export interface Note { user_id: string; kind: string; title: string; body?: string | null; mail?: string }
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
