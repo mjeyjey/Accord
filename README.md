@@ -323,10 +323,8 @@ There is currently no automated test suite.
 
 These are **not yet implemented** and are noted as potential enhancements:
 
-- Real-time chat and notifications via Supabase Realtime
 - Automated test suite (unit, integration, e2e)
 - Mobile application
-- Multi-campus / multi-institution support
 
 ## License
 
