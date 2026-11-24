@@ -25,27 +25,9 @@ const range = (a, b) => {
   return out;
 };
 const PRESETS = [
-  {
-    id: "am",
-    label: "Morning",
-    sub: "8:00 AM – 12:00 PM",
-    w: [["08:00", "12:00"]],
-  },
-  {
-    id: "pm",
-    label: "Afternoon",
-    sub: "1:00 PM – 5:00 PM",
-    w: [["13:00", "17:00"]],
-  },
-  {
-    id: "day",
-    label: "Whole day",
-    sub: "Morning + afternoon",
-    w: [
-      ["08:00", "12:00"],
-      ["13:00", "17:00"],
-    ],
-  },
+  { id: "am", label: "Morning", sub: "8:00 AM – 12:00 PM", w: [["08:00", "12:00"]] },
+  { id: "pm", label: "Afternoon", sub: "12:00 PM – 7:00 PM", w: [["12:00", "19:00"]] },
+  { id: "day", label: "Whole day", sub: "8:00 AM – 7:00 PM", w: [["08:00", "19:00"]] },
   { id: "custom", label: "Custom", sub: "Pick your own hours", w: [] },
 ];
 export default function Availability() {

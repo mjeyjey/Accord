@@ -36,5 +36,5 @@ export const api = {
 
 export const FLOORS = ['Ground', '1st', '2nd', '3rd', '4th', '5th'];
 export const floorLabel = (f: string) => (f === 'Ground' ? 'Ground Floor' : `${f} Floor`);
-export const SLOT_TIMES = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+export const SLOT_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 export const t5 = (t?: string | null) => (t ? String(t).slice(0, 5) : '');

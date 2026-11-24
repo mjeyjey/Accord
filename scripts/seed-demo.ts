@@ -91,8 +91,8 @@ async function main() {
 
   // 35% (9 of 25) are half-day only: 3 morning, 3 afternoon, 3 middle (10:00-14:00).
   const HALF = new Set([0, 3, 6, 9, 12, 15, 18, 21, 24]);
-  const HALF_WINDOWS: [string, string][][] = [[['08:00', '12:00']], [['13:00', '17:00']], [['10:00', '14:00']]];
-  const FULL: [string, string][] = [['08:00', '12:00'], ['13:00', '17:00']];
+  const HALF_WINDOWS: [string, string][][] = [[['08:00', '12:00']], [['12:00', '19:00']], [['10:00', '14:00']]];
+  const FULL: [string, string][] = [['08:00', '19:00']];
 
   const ids: string[] = [];
   const avail: any[] = [];

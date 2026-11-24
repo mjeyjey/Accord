@@ -1,12 +1,15 @@
-// Scheduling engine. Edit SLOTS to change exam hours (each slot = 1 hour).
+// Scheduling engine. Edit SLOTS to change exam hours (each slot = 1 hour start).
 export const SLOTS = {
   AM: ["08:00", "09:00", "10:00", "11:00"],
-  PM: ["13:00", "14:00", "15:00", "16:00"],
+  PM: ["12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
 };
 export const FLOORS = ["Ground", "1st", "2nd", "3rd", "4th", "5th"];
-export const MAX_PER_DAY = 5; // max exams one section can have in a single day (AM + PM combined)
+export const MAX_PER_DAY = 5; // max exams one section can have in a single day
 // true = a section never leaves its own exam days (days_per_year). Hours that don't fit are reported as unplaced.
 export const STRICT_DAYS = true;
+// Order in which the year levels of ONE program are stacked through the day (morning first).
+// [2,1,3,4] => Y2 8:00, Y1 right after, then Y3, then Y4 (same as the printed BSIS schedule).
+export const YEAR_ORDER = [2, 1, 3, 4];
 
 export const hhmm = (t) => String(t).slice(0, 5);
 export const endOf = (t) =>
@@ -35,8 +38,7 @@ export function groupAvail(list) {
   return m;
 }
 
-// A proctor with NO availability rows is NOT available.
-// Only the windows they entered count.
+// A proctor with NO availability rows is NOT available. Only the windows they entered count.
 export const isFree = (list, date, t) =>
   !!list &&
   list.some(
@@ -55,9 +57,9 @@ function shuffle(a) {
   return x;
 }
 
-// Each section takes its subjects in BATCHES: back-to-back hours in one room with ONE proctor.
-// Per program + year level, the largest section (the "anchor") is placed first and every other
-// section copies its dates and hours (own room, own proctor).
+// Per program + year level ("cohort"): the first section alphabetically (the "anchor") is placed first,
+// every other section copies its dates and hours (own room, own proctor).
+// A year level keeps the SAME start hour on all its days; years of a program are stacked through the day.
 export function buildSchedule(inp) {
   const {
     dates,
@@ -73,6 +75,7 @@ export function buildSchedule(inp) {
     spill = false,
   } = inp;
   const K = Math.max(1, Math.min(inp.daysPerYear || 1, dates.length));
+  const ALL = [...SLOTS.AM, ...SLOTS.PM]; // one continuous day, no lunch gap
 
   const roomUsed = new Set();
   const procUsed = new Set();
@@ -81,8 +84,8 @@ export function buildSchedule(inp) {
   const load = new Map();
   const secProctors = new Map();
   const secDays = new Map();
-  const secDayRoom = new Map(); // section|date -> the room its students stay in that day
-  const secRoom = new Map(); // section -> the room it used first (preferred on later days)
+  const secDayRoom = new Map(); // section|date -> room its students stay in that day
+  const secRoom = new Map(); // section -> room it used first (kept on later days)
   const secDayCount = new Map(); // section|date -> exams already placed that day
   const procDaySec = new Map(); // proctor|date -> the ONE section that proctor stays with that day
   const secDayProc = new Map(); // section|date -> proctor already covering it that day
@@ -108,13 +111,29 @@ export function buildSchedule(inp) {
   }
   const deptIds = [...new Set(programs.map((p) => p.department_id))].sort();
   const progById = new Map(programs.map((p) => [p.id, p]));
-  // Rooms each department already uses, so the next room is placed beside them.
-  const deptRooms = new Map();
   const roomNum = (r) => parseInt(String(r.name).replace(/\D/g, ""), 10) || 0;
   const maxCap = ignoreCapacity ? Infinity : Math.max(0, ...rooms.map((r) => r.capacity));
   const floorIdx = (f) => FLOORS.indexOf(f);
   const free = (set, id, d, slots) =>
     slots.every((t) => !set.has(`${id}|${d}|${t}`));
+
+  // Start hour (index in ALL) of every cohort: years are stacked one after another through the day.
+  const startOf = new Map();
+  for (const prog of programs) {
+    const years = [...new Set(sections.filter((s) => s.program_id === prog.id).map((s) => s.year_level))]
+      .filter((y) => subjects.some((x) => x.program_id === prog.id && x.year_level === y))
+      .sort((a, b) => {
+        const ia = YEAR_ORDER.indexOf(a), ib = YEAR_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a - b;
+      });
+    let cur = 0;
+    for (const y of years) {
+      const count = subjects.filter((x) => x.program_id === prog.id && x.year_level === y).length;
+      const L = Math.ceil(count / K); // longest day of this year level
+      startOf.set(`${prog.id}|${y}`, Math.max(0, Math.min(cur, ALL.length - L)));
+      cur += L;
+    }
+  }
 
   const rows = [];
   let unscheduled = 0;
@@ -132,132 +151,129 @@ export function buildSchedule(inp) {
   // Hours that found a room but no proctor are collected here and placed as "to be announced".
   const leftovers = [];
 
-  // fixed = { date, blk, off }: place exactly at that date and start hour (used by follower sections).
-  // Returns { date, blk, off } when placed, or false.
-  function tryPlace(sec, prog, subs, base, home, allowTba, fixed) {
+  // start = preferred start index in ALL (the year's band). fixed = { date, off }: place exactly there (followers).
+  // Returns { date, off } when placed, or false.
+  function tryPlace(sec, prog, subs, base, start, allowTba, fixed) {
     const n = subs.length;
+    if (n > ALL.length) return false;
     const used = secDays.get(sec.id) || new Set();
-    // Try the target day first, then the year's other exam day(s). Never a day outside `base`.
     const days = fixed ? [fixed.date] : base;
-    for (const blk of fixed ? [fixed.blk] : [home, home === "AM" ? "PM" : "AM"]) {
-      for (const d of days) {
-        if ((secDayCount.get(`${sec.id}|${d}`) || 0) + n > MAX_PER_DAY)
-          continue;
-        for (let off = fixed ? fixed.off : 0; off + n <= SLOTS[blk].length; off++) {
-          if (fixed && off > fixed.off) break;
-          const slots = SLOTS[blk].slice(off, off + n);
-          if (!free(secUsed, sec.id, d, slots)) continue;
+    // preferred start first, then the nearest other starts
+    const starts = fixed
+      ? [fixed.off]
+      : Array.from({ length: ALL.length - n + 1 }, (_, i) => i).sort(
+          (a, b) => Math.abs(a - start) - Math.abs(b - start) || a - b,
+        );
+    for (const d of days) {
+      if ((secDayCount.get(`${sec.id}|${d}`) || 0) + n > MAX_PER_DAY) continue;
+      for (const off of starts) {
+        if (off + n > ALL.length) continue;
+        const slots = ALL.slice(off, off + n);
+        if (!free(secUsed, sec.id, d, slots)) continue;
 
-          const dayRoom = secDayRoom.get(`${sec.id}|${d}`);
-          const prev = secRoom.get(sec.id);
-          const dept = prog.department_id;
-          const homeFloor = floorIdx(prog.floor);
-          const usedRooms = deptRooms.get(dept) || [];
-          // Distance to the nearest room this department already uses (floor first, then room number).
-          const gap = (r) =>
-            usedRooms.length
-              ? Math.min(...usedRooms.map((u) => Math.abs(floorIdx(u.floor) - floorIdx(r.floor)) * 1000 + Math.abs(u.n - roomNum(r))))
-              : 0;
-          const room = rooms
-            .filter((r) => (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
-            .sort((a, b) =>
-              // 1) the program's own floor, then the nearest floors
-              Math.abs(floorIdx(a.floor) - homeFloor) - Math.abs(floorIdx(b.floor) - homeFloor) ||
-              // 2) keep the section in the room it already uses
-              Number(b.id === prev) - Number(a.id === prev) ||
-              Number(b.department_id === dept) - Number(a.department_id === dept) ||
-              gap(a) - gap(b) ||
-              a.capacity - b.capacity,
-            )[0];
-          if (!room) continue;
+        const dayRoom = secDayRoom.get(`${sec.id}|${d}`);
+        const prev = secRoom.get(sec.id);
+        const dept = prog.department_id;
+        const homeFloor = floorIdx(prog.floor);
+        const room = rooms
+          .filter((r) => (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
+          .sort((a, b) =>
+            // 1) the program's own floor, then the nearest floors
+            Math.abs(floorIdx(a.floor) - homeFloor) - Math.abs(floorIdx(b.floor) - homeFloor) ||
+            // 2) keep the section in the room it already uses
+            Number(b.id === prev) - Number(a.id === prev) ||
+            Number(b.department_id === dept) - Number(a.department_id === dept) ||
+            // 3) lowest room number first, so sections get 307, 308, 309 ... in order
+            roomNum(a) - roomNum(b) ||
+            String(a.name).localeCompare(String(b.name)),
+          )[0];
+        if (!room) continue;
 
-          const dayPro = secDayProc.get(`${sec.id}|${d}`);
-          const allSlots = [...SLOTS.AM, ...SLOTS.PM];
-          // How many of the day's hours this proctor is free for (8 = whole day).
-          const dayCover = (p) =>
-            allSlots.filter((t) => isFree(avail.get(p.id), d, t) && !procUsed.has(`${p.id}|${d}|${t}`)).length;
-          let cands = proctors.filter((p) => {
-            const bound = procDaySec.get(`${p.id}|${d}`);
-            return (!bound || bound === sec.id) &&
-              !subs.some((x) => blocked.get(p.id)?.has(x.code)) &&
-              free(procUsed, p.id, d, slots) &&
-              slots.every((t) => isFree(avail.get(p.id), d, t));
-          });
-          if (dayPro) {
-            // This section already has a proctor today: keep the same person for the day.
-            const same = cands.filter((p) => p.id === dayPro);
-            if (same.length) cands = same;
-            else if (!allowTba) continue;
-            else cands = [];
-          }
-          if (!cands.length && !allowTba) continue;
-          if (!usedRooms.some((u) => u.id === room.id))
-            deptRooms.set(dept, [...usedRooms, { id: room.id, floor: room.floor, n: roomNum(room) }]);
-          const had = secProctors.get(sec.id) || new Set();
-          const pr = cands.length
-            ? shuffle(cands).sort(
-                (a, b) =>
-                  dayCover(b) - dayCover(a) ||
-                  Number(had.has(b.id)) - Number(had.has(a.id)) ||
-                  Number(b.department_id === prog.department_id) - Number(a.department_id === prog.department_id) ||
-                  (load.get(a.id) || 0) - (load.get(b.id) || 0),
-              )[0]
-            : null; // null = proctor to be announced
-
-          slots.forEach((t) => {
-            roomUsed.add(`${room.id}|${d}|${t}`);
-            if (pr) procUsed.add(`${pr.id}|${d}|${t}`);
-            secUsed.add(`${sec.id}|${d}|${t}`);
-          });
-          if (pr) {
-            load.set(pr.id, (load.get(pr.id) || 0) + 1);
-            secProctors.set(sec.id, had.add(pr.id));
-            procDaySec.set(`${pr.id}|${d}`, sec.id);
-            secDayProc.set(`${sec.id}|${d}`, pr.id);
-          }
-          secDays.set(sec.id, used.add(d));
-          secDayRoom.set(`${sec.id}|${d}`, room.id);
-          secDayCount.set(
-            `${sec.id}|${d}`,
-            (secDayCount.get(`${sec.id}|${d}`) || 0) + n,
-          );
-          if (!prev) secRoom.set(sec.id, room.id);
-          subs.forEach((sub, i) =>
-            rows.push({
-              program_id: sec.program_id,
-              section_id: sec.id,
-              subject_id: sub.id,
-              room_id: room.id,
-              proctor_id: pr ? pr.id : null,
-              exam_date: d,
-              start_time: slots[i],
-              end_time: endOf(slots[i]),
-              status: "scheduled",
-            }),
-          );
-          return { date: d, blk, off };
+        const dayPro = secDayProc.get(`${sec.id}|${d}`);
+        // How many of the day's hours this proctor is free for (11 = whole day).
+        const dayCover = (p) =>
+          ALL.filter((t) => isFree(avail.get(p.id), d, t) && !procUsed.has(`${p.id}|${d}|${t}`)).length;
+        let cands = proctors.filter((p) => {
+          const bound = procDaySec.get(`${p.id}|${d}`);
+          return (!bound || bound === sec.id) &&
+            !subs.some((x) => blocked.get(p.id)?.has(x.code)) &&
+            free(procUsed, p.id, d, slots) &&
+            slots.every((t) => isFree(avail.get(p.id), d, t));
+        });
+        if (dayPro) {
+          // This section already has a proctor today: keep the same person for the whole day.
+          const same = cands.filter((p) => p.id === dayPro);
+          if (same.length) cands = same;
+          else if (!allowTba) continue;
+          else cands = [];
         }
+        if (!cands.length && !allowTba) continue;
+        const had = secProctors.get(sec.id) || new Set();
+        const pr = cands.length
+          ? shuffle(cands).sort(
+              (a, b) =>
+                dayCover(b) - dayCover(a) ||
+                Number(had.has(b.id)) - Number(had.has(a.id)) ||
+                Number(b.department_id === prog.department_id) - Number(a.department_id === prog.department_id) ||
+                (load.get(a.id) || 0) - (load.get(b.id) || 0),
+            )[0]
+          : null; // null = proctor to be announced
+
+        slots.forEach((t) => {
+          roomUsed.add(`${room.id}|${d}|${t}`);
+          if (pr) procUsed.add(`${pr.id}|${d}|${t}`);
+          secUsed.add(`${sec.id}|${d}|${t}`);
+        });
+        if (pr) {
+          load.set(pr.id, (load.get(pr.id) || 0) + 1);
+          secProctors.set(sec.id, had.add(pr.id));
+          procDaySec.set(`${pr.id}|${d}`, sec.id);
+          secDayProc.set(`${sec.id}|${d}`, pr.id);
+        }
+        secDays.set(sec.id, used.add(d));
+        secDayRoom.set(`${sec.id}|${d}`, room.id);
+        secDayCount.set(`${sec.id}|${d}`, (secDayCount.get(`${sec.id}|${d}`) || 0) + n);
+        if (!prev) secRoom.set(sec.id, room.id);
+        subs.forEach((sub, i) =>
+          rows.push({
+            program_id: sec.program_id,
+            section_id: sec.id,
+            subject_id: sub.id,
+            room_id: room.id,
+            proctor_id: pr ? pr.id : null,
+            exam_date: d,
+            start_time: slots[i],
+            end_time: endOf(slots[i]),
+            status: "scheduled",
+          }),
+        );
+        return { date: d, off };
       }
     }
     return false;
   }
 
   // plan = list of placed groups of the cohort's anchor section; followers copy it.
-  function place(sec, prog, subs, base, home, plan) {
-    const r = tryPlace(sec, prog, subs, base, home, false);
+  function place(sec, prog, subs, base, start, plan) {
+    const r = tryPlace(sec, prog, subs, base, start, false);
     if (r) { plan.push({ subs, ...r }); return; }
     if (subs.length > 1) {
       const h = Math.ceil(subs.length / 2);
-      place(sec, prog, subs.slice(0, h), base, home, plan);
-      place(sec, prog, subs.slice(h), base, home, plan);
-    } else leftovers.push({ sec, prog, subs, base, home, plan });
+      place(sec, prog, subs.slice(0, h), base, start, plan);
+      place(sec, prog, subs.slice(h), base, start, plan);
+    } else leftovers.push({ sec, prog, subs, base, start, plan });
   }
 
-  // One cohort = one program + year level. The largest section is the anchor.
+  // One cohort = one program + year level. The first section by name (A, B, C...) is the anchor.
   const batches = [];
   const cohorts = new Map();
-  const bySize = [...sections].sort((a, b) => b.student_count - a.student_count);
-  for (const sec of bySize) {
+  const byName = [...sections].sort(
+    (a, b) =>
+      String(a.program_id).localeCompare(String(b.program_id)) ||
+      a.year_level - b.year_level ||
+      String(a.name).localeCompare(String(b.name), undefined, { numeric: true }),
+  );
+  for (const sec of byName) {
     const prog = progById.get(sec.program_id);
     const subs = subjects.filter(
       (s) => s.program_id === sec.program_id && s.year_level === sec.year_level,
@@ -284,7 +300,8 @@ export function buildSchedule(inp) {
     const rest = dates.filter((d) => !pref.includes(d));
     const per = Math.floor(subs.length / nDays);
     const extra = subs.length % nDays;
-    const rot = sec.year_level % nDays; // alternates which day gets the extra subject (5/4 or 4/5)
+    const rot = sec.year_level % nDays; // alternates which day gets the extra subject (4/3 or 3/4)
+    const start = startOf.get(ck) ?? 0; // SAME start hour on every day of this year level
     let at = 0;
     for (let j = 0; j < nDays; j++) {
       const n = per + ((j + rot) % nDays < extra ? 1 : 0);
@@ -294,7 +311,7 @@ export function buildSchedule(inp) {
         prog,
         subs: subs.slice(at, at + n),
         base: [pref[j], ...pref.filter((d) => d !== pref[j]), ...(spill || !STRICT_DAYS ? rest : [])],
-        home: sec.year_level <= 2 ? "AM" : "PM",
+        start,
         plan: cohort.plan,
       });
       at += n;
@@ -302,11 +319,11 @@ export function buildSchedule(inp) {
   }
   // Largest batches first (hardest to fit), random order otherwise.
   for (const b of shuffle(batches).sort((a, b) => b.subs.length - a.subs.length))
-    place(b.sec, b.prog, b.subs, b.base, b.home, b.plan);
+    place(b.sec, b.prog, b.subs, b.base, b.start, b.plan);
 
   // Not enough proctors: keep the room and time, proctor = to be announced.
   for (const l of leftovers) {
-    const r = tryPlace(l.sec, l.prog, l.subs, l.base, l.home, true);
+    const r = tryPlace(l.sec, l.prog, l.subs, l.base, l.start, true);
     if (r) l.plan.push({ subs: l.subs, ...r });
     else fail(l.sec, l.subs[0], `No free room or hour left on its ${l.base.length} exam day(s)`);
   }
@@ -318,8 +335,8 @@ export function buildSchedule(inp) {
       for (const g of c.plan) {
         g.subs.forEach((s) => covered.add(s.id));
         const ok =
-          tryPlace(f.sec, f.prog, g.subs, [], "AM", false, g) ||
-          tryPlace(f.sec, f.prog, g.subs, [], "AM", true, g);
+          tryPlace(f.sec, f.prog, g.subs, [], 0, false, g) ||
+          tryPlace(f.sec, f.prog, g.subs, [], 0, true, g);
         if (!ok) g.subs.forEach((s) => fail(f.sec, s, "No free room at the shared exam time of its year level"));
       }
       f.subs
