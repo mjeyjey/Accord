@@ -56,7 +56,8 @@ function shuffle(a) {
 }
 
 // Each section takes its subjects in BATCHES: back-to-back hours in one room with ONE proctor.
-// A section's subjects are split across its exam days; the proctor changes from day to day.
+// Per program + year level, the largest section (the "anchor") is placed first and every other
+// section copies its dates and hours (own room, own proctor).
 export function buildSchedule(inp) {
   const {
     dates,
@@ -131,18 +132,19 @@ export function buildSchedule(inp) {
   // Hours that found a room but no proctor are collected here and placed as "to be announced".
   const leftovers = [];
 
-  function tryPlace(sec, prog, subs, base, home, allowTba) {
+  // fixed = { date, blk, off }: place exactly at that date and start hour (used by follower sections).
+  // Returns { date, blk, off } when placed, or false.
+  function tryPlace(sec, prog, subs, base, home, allowTba, fixed) {
     const n = subs.length;
     const used = secDays.get(sec.id) || new Set();
-    const days = [
-      ...base.filter((d) => !used.has(d)),
-      ...base.filter((d) => used.has(d)),
-    ];
-    for (const blk of [home, home === "AM" ? "PM" : "AM"]) {
+    // Try the target day first, then the year's other exam day(s). Never a day outside `base`.
+    const days = fixed ? [fixed.date] : base;
+    for (const blk of fixed ? [fixed.blk] : [home, home === "AM" ? "PM" : "AM"]) {
       for (const d of days) {
         if ((secDayCount.get(`${sec.id}|${d}`) || 0) + n > MAX_PER_DAY)
           continue;
-        for (let off = 0; off + n <= SLOTS[blk].length; off++) {
+        for (let off = fixed ? fixed.off : 0; off + n <= SLOTS[blk].length; off++) {
+          if (fixed && off > fixed.off) break;
           const slots = SLOTS[blk].slice(off, off + n);
           if (!free(secUsed, sec.id, d, slots)) continue;
 
@@ -233,24 +235,29 @@ export function buildSchedule(inp) {
               status: "scheduled",
             }),
           );
-          return true;
+          return { date: d, blk, off };
         }
       }
     }
     return false;
   }
 
-  function place(sec, prog, subs, base, home) {
-    if (tryPlace(sec, prog, subs, base, home, false)) return;
+  // plan = list of placed groups of the cohort's anchor section; followers copy it.
+  function place(sec, prog, subs, base, home, plan) {
+    const r = tryPlace(sec, prog, subs, base, home, false);
+    if (r) { plan.push({ subs, ...r }); return; }
     if (subs.length > 1) {
       const h = Math.ceil(subs.length / 2);
-      place(sec, prog, subs.slice(0, h), base, home);
-      place(sec, prog, subs.slice(h), base, home);
-    } else leftovers.push({ sec, prog, subs, base, home });
+      place(sec, prog, subs.slice(0, h), base, home, plan);
+      place(sec, prog, subs.slice(h), base, home, plan);
+    } else leftovers.push({ sec, prog, subs, base, home, plan });
   }
 
+  // One cohort = one program + year level. The largest section is the anchor.
   const batches = [];
-  for (const sec of sections) {
+  const cohorts = new Map();
+  const bySize = [...sections].sort((a, b) => b.student_count - a.student_count);
+  for (const sec of bySize) {
     const prog = progById.get(sec.program_id);
     const subs = subjects.filter(
       (s) => s.program_id === sec.program_id && s.year_level === sec.year_level,
@@ -262,9 +269,13 @@ export function buildSchedule(inp) {
       );
       continue;
     }
+    const ck = `${sec.program_id}|${sec.year_level}`;
+    const isAnchor = !cohorts.has(ck);
+    if (isAnchor) cohorts.set(ck, { plan: [], followers: [] });
+    const cohort = cohorts.get(ck);
+    if (!isAnchor) { cohort.followers.push({ sec, prog, subs }); continue; }
 
-    const cap = subs.length > 10 ? 5 : 4;
-    const nDays = Math.min(dates.length, Math.max(K, Math.ceil(subs.length / cap)));
+    const nDays = K; // never more than days_per_year
     const off = (deptIds.indexOf(prog.department_id) * K) % dates.length;
     const pref = Array.from(
       { length: nDays },
@@ -273,9 +284,10 @@ export function buildSchedule(inp) {
     const rest = dates.filter((d) => !pref.includes(d));
     const per = Math.floor(subs.length / nDays);
     const extra = subs.length % nDays;
+    const rot = sec.year_level % nDays; // alternates which day gets the extra subject (5/4 or 4/5)
     let at = 0;
     for (let j = 0; j < nDays; j++) {
-      const n = per + (j < extra ? 1 : 0);
+      const n = per + ((j + rot) % nDays < extra ? 1 : 0);
       if (!n) continue;
       batches.push({
         sec,
@@ -283,20 +295,38 @@ export function buildSchedule(inp) {
         subs: subs.slice(at, at + n),
         base: [pref[j], ...pref.filter((d) => d !== pref[j]), ...(spill || !STRICT_DAYS ? rest : [])],
         home: sec.year_level <= 2 ? "AM" : "PM",
+        plan: cohort.plan,
       });
       at += n;
     }
   }
   // Largest batches first (hardest to fit), random order otherwise.
-  for (const b of shuffle(batches).sort(
-    (a, b) => b.subs.length - a.subs.length,
-  ))
-    place(b.sec, b.prog, b.subs, b.base, b.home);
+  for (const b of shuffle(batches).sort((a, b) => b.subs.length - a.subs.length))
+    place(b.sec, b.prog, b.subs, b.base, b.home, b.plan);
 
   // Not enough proctors: keep the room and time, proctor = to be announced.
-  for (const l of leftovers)
-    if (!tryPlace(l.sec, l.prog, l.subs, l.base, l.home, true))
-      fail(l.sec, l.subs[0], `No free room or hour left on its ${l.base.length} exam day(s)`);
+  for (const l of leftovers) {
+    const r = tryPlace(l.sec, l.prog, l.subs, l.base, l.home, true);
+    if (r) l.plan.push({ subs: l.subs, ...r });
+    else fail(l.sec, l.subs[0], `No free room or hour left on its ${l.base.length} exam day(s)`);
+  }
+
+  // Other sections of the same program + year: same dates, same hours, own room and proctor.
+  for (const c of cohorts.values()) {
+    for (const f of c.followers) {
+      const covered = new Set();
+      for (const g of c.plan) {
+        g.subs.forEach((s) => covered.add(s.id));
+        const ok =
+          tryPlace(f.sec, f.prog, g.subs, [], "AM", false, g) ||
+          tryPlace(f.sec, f.prog, g.subs, [], "AM", true, g);
+        if (!ok) g.subs.forEach((s) => fail(f.sec, s, "No free room at the shared exam time of its year level"));
+      }
+      f.subs
+        .filter((s) => !covered.has(s.id))
+        .forEach((s) => fail(f.sec, s, "Could not be placed on the shared exam days of its year level"));
+    }
+  }
 
   const tba = rows.filter(
     (r) => r.status === "scheduled" && !r.proctor_id,
