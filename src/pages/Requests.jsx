@@ -27,6 +27,9 @@ export default function Requests() {
   const [periods, setPeriods] = useState([]);
   const [busy, setBusy] = useState("");
   const [pf, setPf] = useState("");
+  const [fprog, setFprog] = useState("");
+  const [fyear, setFyear] = useState("");
+  const [q, setQ] = useState("");
   const load = () => {
     api
       .action("requests", {})
@@ -73,7 +76,12 @@ export default function Requests() {
   });
   const pfv = periods.some((p) => p.id === pf) ? pf : "";
   const selected = periods.find((p) => p.id === pfv);
-  const shown = (rows || []).filter((r) => !pfv || r.period_id === pfv);
+  const progs = [...new Set((rows || []).map((r) => r.program).filter(Boolean))].sort();
+  const years = [...new Set((rows || []).map((r) => r.year).filter(Boolean))].sort();
+  const needle = q.trim().toLowerCase();
+  const shown = (rows || []).filter((r) =>
+    (!pfv || r.period_id === pfv) && (!fprog || r.program === fprog) && (!fyear || String(r.year) === fyear) &&
+    (!needle || `${r.section} ${r.program} year ${r.year} ${r.subjects}`.toLowerCase().includes(needle)));
   const groups = groupByPeriod(
     shown,
     [],
@@ -120,6 +128,17 @@ export default function Requests() {
             : `${hoursOf(selected)} hour${hoursOf(selected) === 1 ? "" : "s"} before it starts`}
           .
         </p>
+      )}
+      {rows !== null && (
+        <div className="bar">
+          <input placeholder="Search program, year, section, subject" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 280 }} />
+          <select value={fprog} onChange={(e) => setFprog(e.target.value)}>
+            <option value="">All programs</option>{progs.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={fyear} onChange={(e) => setFyear(e.target.value)}>
+            <option value="">All years</option>{years.map((y) => <option key={y} value={y}>Year {y}</option>)}
+          </select>
+        </div>
       )}
       {rows === null ? (
         <section className="card">

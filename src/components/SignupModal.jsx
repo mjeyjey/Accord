@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Field, Modal, useLock } from "./ui";
 import { passwordProblem, PASSWORD_RULE } from "../lib/password";
+import SubjectPicker from "./SubjectPicker";
 export default function SignupModal({ onClose }) {
   const [deps, setDeps] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [f, setF] = useState({
     full_name: "",
     email: "",
@@ -11,6 +13,7 @@ export default function SignupModal({ onClose }) {
     confirm: "",
     department_id: "",
     role: "proctor",
+    subject_codes: [],
   });
   const [errs, setErrs] = useState({});
   const [err, setErr] = useState("");
@@ -24,6 +27,10 @@ export default function SignupModal({ onClose }) {
     fetch("/api/signup")
       .then((r) => r.json())
       .then((d) => Array.isArray(d) && setDeps(d))
+      .catch(() => {});
+    fetch("/api/signup?subjects=1")
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d) && setSubjects(d))
       .catch(() => {});
   }, []);
   useEffect(() => {
@@ -76,6 +83,7 @@ export default function SignupModal({ onClose }) {
           password: f.password,
           role: f.role,
           department_id: f.department_id || null,
+          subject_codes: f.role === "proctor" ? f.subject_codes : [],
           code,
         }),
       });
@@ -157,6 +165,11 @@ export default function SignupModal({ onClose }) {
                     {deps.map((d) => <option key={d.id} value={d.id}>{d.code} - {d.name}</option>)}
                   </select>
                 </Field>
+                {f.role === "proctor" && (
+                  <Field label="Subjects you teach (you won't proctor these)">
+                    <SubjectPicker subjects={subjects} value={f.subject_codes} onChange={(v) => set("subject_codes", v)} />
+                  </Field>
+                )}
                 <Field label="Password *" error={errs.password}>
                   <input
                     type="password"

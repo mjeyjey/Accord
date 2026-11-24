@@ -6,6 +6,7 @@ import CrudTable from "../components/CrudTable";
 import ImportCurriculum from "../components/ImportCurriculum";
 import ImportRooms from "../components/ImportRooms";
 import ProctorSchedule from "../components/ProctorSchedule";
+import ProctorSubjects from "../components/ProctorSubjects";
 import ProfileView from "../components/ProfileView";
 import AccountApprovals from "../components/AccountApprovals";
 import TabScroller from "../components/TabScroller";
@@ -62,6 +63,7 @@ export default function Config() {
   const [progs, setProgs] = useState([]);
   const [availIds, setAvailIds] = useState(new Set());
   const [viewP, setViewP] = useState(null);
+  const [subP, setSubP] = useState(null);
   const [profileId, setProfileId] = useState("");
   const [statusInfo, setStatusInfo] = useState(false);
   const [rk, setRk] = useState(0);
@@ -168,15 +170,10 @@ export default function Config() {
             ]
           : []),
       ]}
-      rowExtra={
-        role === "proctor"
-          ? (r) => (
-              <button className="ghost sm" onClick={() => setViewP(r)}>
-                View schedule
-              </button>
-            )
-          : undefined
-      }
+      rowExtra={role === "proctor" ? (r) => (<>
+        <button className="ghost sm" onClick={() => setSubP(r)}>Subjects</button>
+        <button className="ghost sm" onClick={() => setViewP(r)}>View schedule</button>
+      </>) : undefined}
       fields={[
         { key: "full_name", label: "Full name", required: true },
         {
@@ -574,6 +571,7 @@ export default function Config() {
       {viewP && (
         <ProctorSchedule proctor={viewP} onClose={() => setViewP(null)} />
       )}
+      {subP && <ProctorSubjects proctor={subP} onClose={() => setSubP(null)} />}
       {roomImport && (
         <ImportRooms
           onClose={() => setRoomImport(false)}

@@ -27,6 +27,19 @@ const batchOf = (s: any) =>
     return q.order("start_time").order("id");
   });
 
+const teachesOf = async (pid: string) => new Set<string>((await fetchAll(() =>
+  db.from("proctor_subjects").select("subject_code").eq("proctor_id", pid).order("subject_code"))).map((r: any) => r.subject_code));
+
+// true when this proctor may see/accept this open block
+function canTake(g: any[], p: any, mine: any[], av: any[], teaches: Set<string>) {
+  const f = g[0];
+  if (!p || g.some((r) => teaches.has(r.subject?.code))) return false;
+  const slots = g.map((r) => hhmm(r.start_time));
+  if (mine.some((m) => m.exam_date === f.exam_date && (m.section_id !== f.section_id || slots.includes(hhmm(m.start_time))))) return false;
+  const inPeriod = av.filter((a) => a.date >= p.start_date && a.date <= p.end_date);
+  return !inPeriod.length || slots.every((t) => isFree(inPeriod, f.exam_date, t));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).end();
   const me = await authenticate(req, res);
@@ -81,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (action === "requests") {
         const today = manilaToday();
-        const [open, mine] = await Promise.all([
+        const [open, mine, myAv, teaches] = await Promise.all([
           fetchAll(() =>
             db
               .from("schedules")
@@ -104,6 +117,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               .eq("status", "scheduled")
               .order("id"),
           ),
+          fetchAll(() => db.from("availability").select("*").eq("proctor_id", me.id).order("id")),
+          teachesOf(me.id),
         ]);
         const groups = new Map<string, any[]>();
         for (const r of open) {
@@ -114,6 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const out = [...groups.values()]
           .filter((g) => !acceptClosed(g[0].exam_date, g[0].start_time, cutoffHours(periods.get(g[0].period_id))))
+          .filter((g) => canTake(g, periods.get(g[0].period_id), mine, myAv, teaches))
           .map((g) => {
             const f = g[0], last = g[g.length - 1];
             const p = periods.get(f.period_id);
@@ -129,6 +145,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               section_id: f.section_id,
               period_id: f.period_id,
               period: { id: p.id, name: p.name, semester: p.semester, start_date: p.start_date, end_date: p.end_date },
+              program: f.program?.code,
+              year: f.section?.year_level,
               exam_date: f.exam_date,
               start: hhmm(f.start_time),
               end: hhmm(last.end_time),
@@ -148,6 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const first: string[] = Array.isArray(b.schedule_ids) ? b.schedule_ids : [b.schedule_id];
       const myExams = await fetchAll(() => db.from("schedules").select("exam_date,start_time,section_id")
         .eq("proctor_id", me.id).eq("status", "scheduled").order("id"));
+      const myAv = await fetchAll(() => db.from("availability").select("*").eq("proctor_id", me.id).order("id"));
+      const teaches = await teachesOf(me.id);
       let accepted = 0;
       const skipped: string[] = [];
       for (const sid of first) {
@@ -160,6 +180,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const slots = batch.map((r: any) => hhmm(r.start_time));
         const hours = cutoffHours(period);
         if (acceptClosed(s.exam_date, batch[0].start_time, hours)) { skipped.push(`${s.exam_date}: ${closedText(hours)}`); continue; }
+        const full = await fetchAll(() => db.from("schedules").select("exam_date,start_time,section_id,subject:subjects(code)").in("id", ids).order("id"));
+        if (!canTake(full, period, myExams, myAv, teaches)) { skipped.push(`${s.exam_date}: not available for you`); continue; }
         if (myExams.some((m: any) => m.exam_date === s.exam_date && (m.section_id !== s.section_id || slots.includes(hhmm(m.start_time))))) {
           skipped.push(`${s.exam_date}: you already proctor another section that day`); continue;
         }
@@ -177,6 +199,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (me.role === "proctor")
       return res.status(403).json({ error: "Not allowed" });
+
+    if (action === "subject_catalog") {
+      const rows = await fetchAll(() => db.from("subjects").select("code,title").order("code").order("id"));
+      const m = new Map<string, string>(); rows.forEach((r: any) => { if (!m.has(r.code)) m.set(r.code, r.title); });
+      return res.json([...m].map(([code, title]) => ({ code, title })));
+    }
+    if (action === "proctor_subjects" || action === "set_proctor_subjects") {
+      const { data: p } = await db.from("profiles").select("id,role,department_id").eq("id", b.proctor_id).single();
+      if (!p || p.role !== "proctor") return res.status(404).json({ error: "Proctor not found" });
+      if (me.role === "head" && p.department_id !== me.department_id) return res.status(403).json({ error: "Outside your department" });
+      if (action === "set_proctor_subjects") {
+        const codes = [...new Set((Array.isArray(b.codes) ? b.codes : []).map(String))].slice(0, 200);
+        await db.from("proctor_subjects").delete().eq("proctor_id", p.id);
+        if (codes.length) { const { error } = await db.from("proctor_subjects").insert(codes.map((c) => ({ proctor_id: p.id, subject_code: c }))); if (error) throw error; }
+        await log(me, "update", "profiles", { id: p.id, profile: "proctor subjects" });
+        return res.json({ ok: true });
+      }
+      const rows = await fetchAll(() => db.from("proctor_subjects").select("subject_code").eq("proctor_id", p.id).order("subject_code"));
+      return res.json(rows.map((r: any) => r.subject_code));
+    }
 
     if (action === "review_period") {
       if (me.role !== "admin") return res.status(403).json({ error: "Only an admin can approve schedules" });
@@ -397,6 +439,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ),
         ]);
 
+      const ps = await fetchAll(() => db.from("proctor_subjects").select("proctor_id,subject_code").order("proctor_id").order("subject_code"));
+      const blocked = new Map<string, Set<string>>();
+      ps.forEach((r: any) => { if (!blocked.has(r.proctor_id)) blocked.set(r.proctor_id, new Set()); blocked.get(r.proctor_id)!.add(r.subject_code); });
+
       if (!rooms.length)
         return res
           .status(400)
@@ -425,6 +471,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         proctors,
         availability,
         busy,
+        blocked,
       });
 
       await db
@@ -535,6 +582,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           fetchAll(() => db.from("schedules").select("proctor_id")
             .eq("period_id", s.period_id).eq("status", "scheduled").not("proctor_id", "is", null).order("id")),
         ]);
+        const codes = (await fetchAll(() => db.from("schedules").select("id,subject:subjects(code)").in("id", ids).order("id"))).map((r: any) => r.subject?.code).filter(Boolean);
+        const teachers = new Set(codes.length ? (await fetchAll(() => db.from("proctor_subjects").select("proctor_id,subject_code").in("subject_code", codes).order("proctor_id").order("subject_code"))).map((r: any) => r.proctor_id) : []);
         const loads = new Map<string, number>();
         periodRows.forEach((r: any) => loads.set(r.proctor_id, (loads.get(r.proctor_id) || 0) + 1));
         // taken = same hour clash, OR already proctoring a different section that day
@@ -544,7 +593,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         const selfFree = !taken.has(me.id);
         const by = groupAvail(availability);
-        const base = proctors.filter((p: any) => p.id !== s.proctor_id && !taken.has(p.id));
+        const base = proctors.filter((p: any) => p.id !== s.proctor_id && !taken.has(p.id) && !teachers.has(p.id));
         const withTime = base.filter(
           (p: any) => by.has(p.id) && slots.every((t: string) => isFree(by.get(p.id), s.exam_date, t)),
         );

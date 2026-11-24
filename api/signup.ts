@@ -1,11 +1,16 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db } from "./_lib.js";
+import { db, fetchAll } from "./_lib.js";
 import { checkOtp } from "./_otp.js";
 import { passwordProblem } from "./_password.js";
 import { notify } from "./_notify.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
+    if (req.query.subjects) {
+      const rows = await fetchAll(() => db.from("subjects").select("code,title").order("code").order("id"));
+      const m = new Map<string, string>(); rows.forEach((r: any) => { if (!m.has(r.code)) m.set(r.code, r.title); });
+      return res.json([...m].map(([code, title]) => ({ code, title })));
+    }
     const { data } = await db.from("departments").select("id,code,name").order("code");
     return res.json(data || []);
   }
@@ -17,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const password = String(b.password || "");
   const department_id = b.department_id ? String(b.department_id) : null;
   const role = b.role === "head" ? "head" : "proctor";
+  const subject_codes = Array.isArray(b.subject_codes) ? [...new Set(b.subject_codes.map(String))].slice(0, 200) : [];
 
   if (!full_name || !/^\S+@\S+\.\S+$/.test(email))
     return res.status(400).json({ error: "Enter your name and a valid email" });
@@ -41,6 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await db.auth.admin.deleteUser(data.user.id);
     return res.status(400).json({ error: e2.message });
   }
+  if (role === "proctor" && subject_codes.length)
+    await db.from("proctor_subjects").insert(subject_codes.map((c) => ({ proctor_id: data.user.id, subject_code: c })));
   await db.from("audit_log").insert({
     user_id: data.user.id, user_name: full_name, action: "create", entity: "profiles",
     details: { full_name, role, self_signup: true, status: "pending" },

@@ -4,7 +4,7 @@ export const SLOTS = {
   PM: ["13:00", "14:00", "15:00", "16:00"],
 };
 export const FLOORS = ["Ground", "1st", "2nd", "3rd", "4th", "5th"];
-export const MAX_PER_DAY = 4; // max exams one section can have in a single day (AM + PM combined)
+export const MAX_PER_DAY = 5; // max exams one section can have in a single day (AM + PM combined)
 // true = a section never leaves its own exam days (days_per_year). Hours that don't fit are reported as unplaced.
 export const STRICT_DAYS = true;
 
@@ -67,6 +67,7 @@ export function buildSchedule(inp) {
     proctors,
     availability,
     busy,
+    blocked = new Map(),
     ignoreCapacity = false,
     spill = false,
   } = inp;
@@ -176,6 +177,7 @@ export function buildSchedule(inp) {
           let cands = proctors.filter((p) => {
             const bound = procDaySec.get(`${p.id}|${d}`);
             return (!bound || bound === sec.id) &&
+              !subs.some((x) => blocked.get(p.id)?.has(x.code)) &&
               free(procUsed, p.id, d, slots) &&
               slots.every((t) => isFree(avail.get(p.id), d, t));
           });
@@ -261,11 +263,8 @@ export function buildSchedule(inp) {
       continue;
     }
 
-    // Same division = same exam days (divisions are staggered across the date range).
-    const nDays = Math.min(
-      dates.length,
-      Math.max(K, Math.ceil(subs.length / MAX_PER_DAY)),
-    );
+    const cap = subs.length > 10 ? 5 : 4;
+    const nDays = Math.min(dates.length, Math.max(K, Math.ceil(subs.length / cap)));
     const off = (deptIds.indexOf(prog.department_id) * K) % dates.length;
     const pref = Array.from(
       { length: nDays },
