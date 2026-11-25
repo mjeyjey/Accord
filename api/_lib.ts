@@ -74,7 +74,7 @@ export async function authenticate(req: VercelRequest, res: VercelResponse): Pro
   }
   const { data: ok } = await db.from('otp_sessions').select('session_id')
     .eq('session_id', u.sid || '-').gt('expires_at', new Date().toISOString()).maybeSingle();
-  if (!ok && !(await trustedDevice(req, u.id, u.sid))) {
+  if (!ok && !me.skip_otp && !(await trustedDevice(req, u.id, u.sid))) {
     res.status(401).json({ code: 'otp', error: 'Verification code required' }); return null;
   }
   if (key) {

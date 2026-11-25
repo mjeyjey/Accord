@@ -38,13 +38,13 @@ export default function Overview() {
   const [det, setDet] = useState(null);
   const load = async () => {
     try {
-      const [schedules, rooms, availability, profiles] = await Promise.all([
-        api.list("schedules"),
-        api.list("rooms"),
-        api.list("availability"),
-        api.list("profiles").catch(() => []),
+      const [sch, rooms, availability, profiles, periods] = await Promise.all([
+        api.list("schedules"), api.list("rooms"), api.list("availability"),
+        api.list("profiles").catch(() => []), api.list("exam_periods"),
       ]);
-      setD({ schedules, rooms, availability, profiles });
+      const t = iso(new Date());
+      const live = new Set(periods.filter((p) => p.status !== "ended" && p.end_date >= t).map((p) => p.id));
+      setD({ schedules: sch.filter((s) => live.has(s.period_id)), rooms, availability, profiles });
     } catch (e) {
       setErr(e.message);
     }

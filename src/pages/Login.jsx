@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { LogoMark } from "../components/Logo";
-import { Field, useLock } from "../components/ui";
+import { Field, Modal, useLock } from "../components/ui";
 import SignupModal from "../components/SignupModal";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
 export default function Login({ notice }) {
@@ -13,6 +13,8 @@ export default function Login({ notice }) {
   const [loading, setLoading] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [signup, setSignup] = useState(false);
+  const [agree, setAgree] = useState(false);
+  const [terms, setTerms] = useState(false);
   const [locked, guard] = useLock();
   const submit = guard(async (e) => {
     e.preventDefault();
@@ -20,6 +22,7 @@ export default function Login({ notice }) {
     const er = {};
     if (!/^\S+@\S+\.\S+$/.test(email)) er.email = "Enter a valid email address";
     if (!password) er.password = "Enter your password";
+    if (!agree) er.agree = "Please agree to the Terms and Conditions to continue";
     setErrs(er);
     if (Object.keys(er).length) return;
     setLoading(true);
@@ -93,6 +96,11 @@ export default function Login({ notice }) {
           >
             Forgot password?
           </button>
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 8, fontWeight: 400, textAlign: "left" }}>
+            <input type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); setErrs({ ...errs, agree: "" }); }} />
+            <span>I agree to the <button type="button" className="link" style={{ display: "inline", margin: 0 }} onClick={() => setTerms(true)}>Terms and Conditions</button></span>
+          </label>
+          {errs.agree && <small className="ferr">{errs.agree}</small>}
           <button type="submit" disabled={loading || locked} aria-busy={locked}>
             {loading ? "Signing in…" : "Login"}
           </button>
@@ -106,6 +114,7 @@ export default function Login({ notice }) {
               Create account
             </button>
           </p>
+          <p className="foot">Concerns? Email <a href="mailto:accord.laconcepcioncollege@gmail.com">accord.laconcepcioncollege@gmail.com</a></p>
         </form>
       </main>
 
@@ -116,6 +125,10 @@ export default function Login({ notice }) {
         />
       )}
       {signup && <SignupModal onClose={() => setSignup(false)} />}
+      {terms && <Modal title="Terms and Conditions" onClose={() => setTerms(false)} footer={<button onClick={() => setTerms(false)}>Close</button>}>
+        <p className="dlgtext">Accord is for authorized La Concepcion College staff only. Use your own account, keep your password private, and use schedule data only for school purposes. Your activity is recorded for security and accountability.</p>
+        <p className="dlgtext">Concerns? Email accord.laconcepcioncollege@gmail.com.</p>
+      </Modal>}
     </div>
   );
 }

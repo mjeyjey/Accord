@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useState } from "react";
 import { api, floorLabel, t5 } from "../lib/api";
 import { useMe } from "../lib/me";
 import {
@@ -42,6 +42,7 @@ const BLANK = {
 };
 const datesOf = (y) => [...new Set(y.rows.map((r) => r.exam_date))].sort();
 const CUTOFF_CHOICES = [0, 1, 2, 3, 6, 12, 24, 48, 72];
+const HINT = "Download a year level for students: PDF is best for printing, PNG is best for sharing on a phone.";
 export default function Periods() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -64,6 +65,7 @@ export default function Periods() {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [editId, setEditId] = useState("");
   const [form, setForm] = useState({ ...BLANK });
   const [ferr, setFerr] = useState({});
   const [openYear, setOpenYear] = useState("");
@@ -130,9 +132,16 @@ export default function Periods() {
     setFerr({ ...ferr, [k]: "" });
   };
   const openNew = () => {
+    setEditId("");
     setForm({ ...BLANK });
     setFerr({});
     setShowNew(true);
+  };
+  const openEdit = () => {
+    setEditId(sel);
+    setForm({ name: period.name, start_date: period.start_date, end_date: period.end_date, days_per_year: period.days_per_year, semester: period.semester,
+      program_ids: (period.program_ids || []).filter((id) => progs.some((p) => p.id === id)) });
+    setFerr({}); setShowNew(true);
   };
   const create = guard(async (e) => {
     e.preventDefault();
@@ -149,19 +158,25 @@ export default function Periods() {
     if (Object.keys(er).length) return;
     setSaving(true);
     try {
-      const row = await api.create("exam_periods", form);
-      await loadAll();
-      setSel(row.id);
-      setShowNew(false);
-      ui.toast.success(
-        "Exam period created. You can generate the schedule now.",
-      );
+      if (editId) {
+        const mine = new Set(progs.map((p) => p.id));
+        const keep = (period?.program_ids || []).filter((id) => !mine.has(id));
+        await api.update("exam_periods", editId, { ...form, program_ids: [...keep, ...form.program_ids] });
+        await loadAll(); setShowNew(false);
+        ui.toast.success("Exam period updated. Regenerate the schedule to apply date or exam-day changes.");
+      } else {
+        const row = await api.create("exam_periods", form);
+        await loadAll(); setSel(row.id); setShowNew(false);
+        ui.toast.success("Exam period created. You can generate the schedule now.");
+      }
     } catch (e) {
       setFerr({ form: e.message });
     }
     setSaving(false);
   });
   const period = periods.find((p) => p.id === sel);
+  const deptOk = me.role === "head" && (period?.dept_approvals || []).includes(me.department_id);
+  const approved = period?.status === "approved" || deptOk;
   const generate = guard(async () => {
     const ok = await ui.confirm({
       title:
@@ -180,10 +195,10 @@ export default function Periods() {
     try {
       const s = await api.action("generate", { period_id: sel });
       ui.toast.success(
-        `${s.scheduled} exams scheduled in ${s.batches} batches` +
-          (s.unscheduled ? `, ${s.unscheduled} could not be placed` : "") +
-          (s.tba
-            ? `. ${s.tba} hour(s) have no proctor yet (proctors were notified).`
+        `${s.sections} sections scheduled` +
+          (s.unplacedSections ? `, ${s.unplacedSections} could not be fully placed` : "") +
+          (s.tbaSections
+            ? `. ${s.tbaSections} section(s) have no proctor yet (proctors were notified).`
             : "."),
       );
       await loadAll();
@@ -307,7 +322,7 @@ export default function Periods() {
     const file = `ExamSchedule_${label}`.replace(/[^\w-]+/g, "_");
     const meta = {
       program: label,
-      subtitle: `${label} · all year levels`,
+      subtitle: `${label} Â· all year levels`,
       file,
       period: period?.name || "Exam period",
       start: period?.start_date,
@@ -461,7 +476,7 @@ export default function Periods() {
             <strong>{fmt(f.exam_date)}</strong>
             {f.room ? (
               <span className="muted">
-                Room {f.room.name} · {floorLabel(f.room.floor)}{" "}
+                Room {f.room.name} Â· {floorLabel(f.room.floor)}{" "}
                 {tooSmall && <Badge tone="amber">Over capacity</Badge>}
               </span>
             ) : (
@@ -543,14 +558,14 @@ export default function Periods() {
           {period && (
             <Badge
               tone={
-                period.status === "approved"
+                approved
                   ? "green"
                   : period.status === "draft"
                     ? "gray"
                     : "amber"
               }
             >
-              {period.status === "approved"
+              {approved
                 ? "Approved"
                 : period.status === "draft"
                   ? "Draft"
@@ -596,7 +611,7 @@ export default function Periods() {
             </label>
           )}
           <span style={{ flex: 1 }} />
-          {sel && me.role === "admin" && period?.status === "generated" && (
+          {sel && period?.status === "generated" && !approved && (
             <button
               disabled={locked}
               aria-busy={locked}
@@ -605,7 +620,7 @@ export default function Periods() {
               Approve schedule
             </button>
           )}
-          {sel && me.role === "admin" && period?.status === "approved" && (
+          {sel && ((me.role === "admin" && period?.status === "approved") || deptOk) && (
             <button
               className="ghost"
               disabled={locked}
@@ -616,13 +631,16 @@ export default function Periods() {
             </button>
           )}
           {sel && (
+            <button className="ghost" disabled={locked} onClick={openEdit}>Edit period</button>
+          )}
+          {sel && (
             <button
               disabled={busy || locked}
               aria-busy={locked}
               onClick={generate}
             >
               {busy
-                ? "Generating…"
+                ? "Generatingâ€¦"
                 : period?.status === "draft"
                   ? "Generate schedule"
                   : "Regenerate"}
@@ -657,7 +675,7 @@ export default function Periods() {
               <Icon name={icon} />
             </span>
             <div>
-              <b>{sched === null ? "–" : <CountUp value={v} />}</b>
+              <b>{sched === null ? "â€“" : <CountUp value={v} />}</b>
               <span>{k}</span>
             </div>
           </div>
@@ -725,24 +743,6 @@ export default function Periods() {
             />{" "}
             Pending (waiting for a proctor or room)
           </label>
-          <label
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              fontWeight: 400,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={onlyUnplaced}
-              onChange={(e) => {
-                setOnlyUnplaced(e.target.checked);
-                resetOpen();
-              }}
-            />{" "}
-            Only unplaced sections
-          </label>
           <span style={{ flex: 1 }} />
           <button
             className="ghost sm"
@@ -753,16 +753,12 @@ export default function Periods() {
           >
             {open ? "Collapse all" : "Expand all"}
           </button>
-          <ExportMenu
+          <span title={HINT}><ExportMenu
             label="Export all programs"
             onExport={(f) => doExportMany(years, f, "All programs")}
             disabled={locked || !years.some((y) => y.count)}
-          />
+          /></span>
         </div>
-        <p className="hint">
-          Download a year level for students: <b>PDF</b> is best for printing,{" "}
-          <b>PNG</b> is best for sharing on a phone.
-        </p>
       </section>
 
       {sched === null &&
@@ -784,7 +780,7 @@ export default function Periods() {
                 {info.logo && <img className="dlogo" src={info.logo} alt="" />}
                 <span className="pname">{info.code}</span>
                 <span className="muted">
-                  {info.name ? `${info.name} · ` : ""}
+                  {info.name ? `${info.name} Â· ` : ""}
                   {list.length} year level{list.length === 1 ? "" : "s"}
                 </span>
                 {issues > 0 && (
@@ -815,7 +811,7 @@ export default function Periods() {
                           </Badge>
                         </div>
                         <div className="yc-meta">
-                          {y.count} exams · {dates.length} exam day
+                          {y.count} exams Â· {dates.length} exam day
                           {dates.length === 1 ? "" : "s"}
                         </div>
                         <div className="chips" style={{ marginBottom: 0 }}>
@@ -850,7 +846,7 @@ export default function Periods() {
                 })}
               </div>
             </details>
-            <div className="progact">
+            <div className="progact" title={HINT}>
               <ExportMenu
                 small
                 label={`Export ${info.code}`}
@@ -874,7 +870,7 @@ export default function Periods() {
       {oy && (
         <Modal
           wide
-          title={`${oy.prog} · Year ${oy.year}`}
+          title={`${oy.prog} Â· Year ${oy.year}`}
           onClose={closeDetail}
           footer={
             <>
@@ -922,7 +918,7 @@ export default function Periods() {
                       <h5>
                         Pending{" "}
                         <span>
-                          waiting for a proctor or room · {pend.length}
+                          waiting for a proctor or room Â· {pend.length}
                         </span>
                       </h5>
                       {pend.map((r) => renderBatch(r))}
@@ -961,7 +957,7 @@ export default function Periods() {
       {showNew && (
         <Modal
           wide
-          title="New exam period"
+          title={editId ? "Edit exam period" : "New exam period"}
           onClose={() => setShowNew(false)}
           footer={
             <>
@@ -978,7 +974,7 @@ export default function Periods() {
                 disabled={saving || locked}
                 aria-busy={locked}
               >
-                {saving ? "Creating…" : "Create period"}
+                {saving ? "Creatingâ€¦" : editId ? "Save changes" : "Create period"}
               </button>
             </>
           }

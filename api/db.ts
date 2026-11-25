@@ -363,6 +363,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (table === "availability" && mine) body.proctor_id = me.id;
       if (table === "exam_periods") {
         delete body.status;
+        delete body.dept_approvals;
         const bad = cutoffProblem(body);
         if (bad) return res.status(400).json({ error: bad });
       }
@@ -414,6 +415,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (table === "profiles") { delete body.email; delete body.id; }
       if (table === "exam_periods") {
         delete body.status;
+        delete body.dept_approvals;
         const bad = cutoffProblem(body);
         if (bad) return res.status(400).json({ error: bad });
       }

@@ -78,13 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ ok: true, remembered: remember });
     }
 
-    // Logout: end this login session AND forget this device.
+    // Logout ends this login session while keeping the device trusted.
     if (b.action === "logout") {
       const u = await userFromToken(req);
       if (u) {
-        const raw = readCookie(req, `td_${u.id}`);
-        if (raw) await db.from("trusted_devices").delete().eq("user_id", u.id).eq("token_hash", sha256(raw));
-        setCookie(req, res, `td_${u.id}`, "", 0);
         await db.from("otp_sessions").delete().eq("session_id", u.sid);
         clearAuthCache(u.id);
       }

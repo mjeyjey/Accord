@@ -4,6 +4,7 @@ import { Field, initials, Modal, useUi } from './ui';
 import { ACCENTS, getTheme, saveTheme, Theme } from '../lib/theme';
 import RowMenu from './RowMenu';
 import { passwordProblem, PASSWORD_RULE } from '../lib/password';
+import SubjectPicker from './SubjectPicker';
 
 
 // Crop to a square and shrink, so the picture is stored as a small data URL in the profile row.
@@ -26,7 +27,7 @@ export function ProfileModal({ me, onClose, onSaved, onEmailChanged }: {
   me: Me; onClose: () => void; onSaved: (m: Partial<Me>) => void; onEmailChanged: (email: string) => void;
 }) {
   const ui = useUi();
-  const [tab, setTab] = useState<'profile' | 'email'>('profile');
+  const [tab, setTab] = useState<'profile' | 'email' | 'subjects'>('profile');
   const [name, setName] = useState(me.full_name);
   const [pic, setPic] = useState<string | null>(me.avatar_url || null);
   const [nameErr, setNameErr] = useState('');
@@ -62,8 +63,9 @@ export function ProfileModal({ me, onClose, onSaved, onEmailChanged }: {
       <div className="tabs">
         <button type="button" className={tab === 'profile' ? 'on' : ''} onClick={() => setTab('profile')}>Profile</button>
         <button type="button" className={tab === 'email' ? 'on' : ''} onClick={() => setTab('email')}>Change email</button>
+        {me.role === 'proctor' && <button type="button" className={tab === 'subjects' ? 'on' : ''} onClick={() => setTab('subjects')}>My subjects</button>}
       </div>
-      {tab === 'email' ? <ChangeEmailForm me={me} onChanged={(email) => { onEmailChanged(email); onClose(); }} /> : <form id="profform" onSubmit={submit} noValidate>
+      {tab === 'subjects' ? <MySubjects me={me} /> : tab === 'email' ? <ChangeEmailForm me={me} onChanged={(email) => { onEmailChanged(email); onClose(); }} /> : <form id="profform" onSubmit={submit} noValidate>
         {err && <div className="alert error">{err}</div>}
         <div className="row" style={{ marginBottom: 16 }}>
           {pic ? <img className="pfp" src={pic} alt="" /> : <span className="pfp">{initials(name)}</span>}
@@ -81,6 +83,30 @@ export function ProfileModal({ me, onClose, onSaved, onEmailChanged }: {
       </form>}
     </Modal>
   );
+}
+
+function MySubjects({ me }: { me: Me }) {
+  const ui = useUi();
+  const [all, setAll] = useState<any[]>([]);
+  const [val, setVal] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    Promise.all([api.action('subject_catalog', {}), api.action('proctor_subjects', { proctor_id: me.id })])
+      .then(([s, v]: any) => { setAll(s); setVal(v); }).catch((e: any) => ui.toast.error(e.message));
+  }, []);
+  const save = async () => {
+    setBusy(true);
+    try { await api.action('set_proctor_subjects', { proctor_id: me.id, codes: val }); ui.toast.success('Subjects saved'); }
+    catch (e: any) { ui.toast.error(e.message); }
+    setBusy(false);
+  };
+  return <>
+    <p className="muted" style={{ marginTop: 0 }}>You will never be assigned to sections that include these subjects.</p>
+    {val ? <SubjectPicker subjects={all} value={val} onChange={setVal} /> : <p className="muted">Loading…</p>}
+    <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+      <button disabled={busy || !val} onClick={save}>{busy ? 'Saving…' : 'Save subjects'}</button>
+    </div>
+  </>;
 }
 
 function ChangeEmailForm({ me, onChanged }: { me: Me; onChanged: (email: string) => void }) {

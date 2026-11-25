@@ -24,6 +24,7 @@ interface Props {
   editExtra?: (r: any, reload: () => void) => ReactNode;
   reloadKey?: any; hint?: string; toolbar?: ReactNode;
   addMenu?: { label: string; onClick: () => void }[];
+  filters?: { key: string; label: string; options: { value: string; label: string }[]; test: (r: any, v: string) => boolean }[];
 }
 
 const runAll = async (ids: string[], fn: (id: string) => Promise<any>) => {
@@ -92,6 +93,8 @@ export default function CrudTable(p: Props) {
   const [loadErr, setLoadErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState('');
+  const [fv, setFv] = useState<Record<string, string>>({});
+  const [fOpen, setFOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [addOpen, setAddOpen] = useState(false);
@@ -101,11 +104,12 @@ export default function CrudTable(p: Props) {
     .then((r) => { setRows(r); setLoadErr(''); })
     .catch((e) => { setLoadErr(e.message); setRows([]); });
   useEffect(() => {
-    setRows(null); setPage(1); setSel(new Set()); setEdit(null); setBulk(null); reload();
+    setRows(null); setPage(1); setSel(new Set()); setEdit(null); setBulk(null); setFv({}); reload();
   }, [p.table, p.reloadKey]);
 
   let shown = (rows || [])
     .filter(p.filter || (() => true))
+    .filter((r) => (p.filters || []).every((f) => !fv[f.key] || f.test(r, fv[f.key])))
     .filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
   if (p.sort) shown = [...shown].sort(p.sort);
   const pageRows = slicePage(shown, page, size);
@@ -240,6 +244,18 @@ export default function CrudTable(p: Props) {
       <div className="bar">
         <h3>{p.title}{rows && <> <span className="badge gray">{shown.length}</span></>}</h3>
         <input placeholder="Search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ width: mobile ? '100%' : 200 }} />
+        {!!p.filters?.length && (() => { const n = Object.values(fv).filter(Boolean).length; return (
+          <div className="menu">
+            <button className="ghost" onClick={() => setFOpen(!fOpen)}>Filter{n ? ` (${n})` : ''} ▾</button>
+            {fOpen && <div className="menu-back" onClick={() => setFOpen(false)} />}
+            {fOpen && <div className="menu-list" style={{ minWidth: 220, padding: 12, gap: 10 }}>
+              {p.filters!.map((f) => <label key={f.key}>{f.label}
+                <select value={fv[f.key] || ''} onChange={(e) => { setFv({ ...fv, [f.key]: e.target.value }); setPage(1); }}>
+                  <option value="">All</option>{f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select></label>)}
+              {n > 0 && <button className="ghost sm" onClick={() => { setFv({}); setPage(1); }}>Clear filters</button>}
+            </div>}
+          </div>); })()}
         {p.toolbar}
         <button className="ghost" disabled={locked} onClick={() => { setSelecting(!selecting); setSel(new Set()); setBulk(null); }}>{selecting ? 'Cancel' : 'Select'}</button>
         {p.allowAdd !== false && (p.addMenu?.length ? (

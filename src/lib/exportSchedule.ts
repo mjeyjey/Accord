@@ -101,7 +101,7 @@ function build(rows: any[], meta: ExportMeta): Op[] {
         },
       });
     }
-    const label = `${f.program?.code ?? meta.program} ${f.section?.year_level ?? meta.year}${f.section?.name ?? ''}`;
+    const label = `Year ${f.section?.year_level ?? meta.year} · Section ${f.section?.name ?? ''}`;
     const students = f.section?.student_count;
     ops.push({
       h: 96, keepNext: true,

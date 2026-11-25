@@ -395,6 +395,7 @@ export default function Config() {
           title="Subjects"
           reloadKey={rk}
           filter={byProgram}
+          filters={[{ key: "year", label: "Year", options: YEARS, test: (r, v) => String(r.year_level) === v }, { key: "sem", label: "Semester", options: SEMS, test: (r, v) => String(r.semester) === v }]}
           sort={(a, b) =>
             cmp(a.program?.code, b.program?.code) ||
             a.year_level - b.year_level ||
@@ -449,6 +450,7 @@ export default function Config() {
           table="sections"
           title="Sections"
           filter={byProgram}
+          filters={[{ key: "year", label: "Year", options: YEARS, test: (r, v) => String(r.year_level) === v }]}
           sort={(a, b) =>
             cmp(a.program?.code, b.program?.code) ||
             a.year_level - b.year_level ||
@@ -496,6 +498,7 @@ export default function Config() {
           title="Rooms"
           reloadKey={rk}
           filter={admin ? byDept : undefined}
+          filters={[{ key: "floor", label: "Floor", options: floorOpts, test: (r, v) => r.floor === v }]}
           addMenu={[{ label: "Import", onClick: () => setRoomImport(true) }]}
           sort={(a, b) =>
             FLOORS.indexOf(a.floor) - FLOORS.indexOf(b.floor) ||

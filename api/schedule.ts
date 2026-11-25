@@ -197,7 +197,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ ok: true, accepted, skipped: skipped.length });
     }
 
-    if (me.role === "proctor")
+    if (me.role === "proctor" && (action === "proctor_subjects" || action === "set_proctor_subjects")) b.proctor_id = me.id;
+    else if (me.role === "proctor" && action !== "subject_catalog")
       return res.status(403).json({ error: "Not allowed" });
 
     if (action === "subject_catalog") {
@@ -221,11 +222,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (action === "review_period") {
-      if (me.role !== "admin") return res.status(403).json({ error: "Only an admin can approve schedules" });
       const { data: p } = await db.from("exam_periods").select("*").eq("id", b.period_id).single();
       if (!p) return res.status(404).json({ error: "Exam period not found" });
       const approve = b.decision === "approve";
       if (p.status === "ended") return res.status(400).json({ error: "This exam period has ended" });
+      if (me.role === "head") {
+        if (!me.department_id) return res.status(403).json({ error: "No department" });
+        if (p.status === "draft") return res.status(400).json({ error: "Generate the schedule first" });
+        const { data: programs } = await db.from("programs").select("id").in("id", p.program_ids || []).eq("department_id", me.department_id);
+        if (!programs?.length) return res.status(403).json({ error: "Outside your department" });
+        const set = new Set<string>(p.dept_approvals || []);
+        if (approve) set.add(me.department_id); else set.delete(me.department_id);
+        const { error } = await db.from("exam_periods").update({ dept_approvals: [...set] }).eq("id", p.id);
+        if (error) throw error;
+        await log(me, approve ? "approve" : "revoke approval", "exam_periods", { period: p.name });
+        return res.json({ ok: true, status: p.status });
+      }
+      if (me.role !== "admin") return res.status(403).json({ error: "Not allowed" });
       if (approve && p.status !== "generated") return res.status(400).json({ error: p.status === "approved" ? "Already approved" : "Generate the schedule first" });
       if (!approve && p.status !== "approved") return res.status(400).json({ error: "This schedule is not approved" });
       const { error } = await db.from("exam_periods").update({ status: approve ? "approved" : "generated" }).eq("id", p.id);
@@ -473,6 +486,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         busy,
         blocked,
       });
+      const cnt = (f: (r: any) => boolean) => new Set(rows.filter(f).map((r: any) => r.section_id)).size;
+      const secOk = cnt((r: any) => r.status === "scheduled"), secBad = cnt((r: any) => r.status === "unscheduled"), secTba = cnt((r: any) => r.status === "scheduled" && !r.proctor_id);
 
       await db
         .from("schedules")
@@ -491,18 +506,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       await db
         .from("exam_periods")
-        .update({ status: "generated" })
+        .update({ status: "generated", dept_approvals: [] })
         .eq("id", period.id);
       if ((stats as any).tba > 0) {
         await db.from("notifications").delete().eq("title", "Proctors needed").eq("read", false);
-        const msg = `${(stats as any).tba} exam hour(s) in "${period.name}" have no proctor yet. Open Assignment requests to accept one.`;
+        const msg = `${secTba} section(s) in "${period.name}" have no proctor yet. Open Assignment requests to accept one.`;
         await notify(proctors.map((p: any) => ({ user_id: p.id, title: "Proctors needed", body: msg, kind: "requests" })));
       }
       await log(me, "generate", "exam_periods", {
         period: period.name,
         ...stats,
       });
-      return res.json(stats);
+      return res.json({ ...stats, sections: secOk, unplacedSections: secBad, tbaSections: secTba });
     }
 
     if (action === "resolve_unplaced") {
