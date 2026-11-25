@@ -230,14 +230,14 @@ export function SettingsModal({ me, onClose }: { me: Me; onClose: () => void }) 
       </div>
 
       {tab === 'theme' && <>
-        <h4 className="sechead" style={{ marginTop: 0 }}>Color mode</h4>
+        <h4 className="sechead" style={{ marginTop: 0, borderBottom: 'none' }}>Color mode</h4>
         <div className="theme-modes" role="radiogroup" aria-label="Color mode">
           {(['light', 'dark', 'system'] as const).map((mode) => <label key={mode} className="theme-mode">
             <input type="radio" name="theme-mode" checked={theme.mode === mode} onChange={() => changeTheme({ ...theme, mode })} />
             <span>{mode[0].toUpperCase() + mode.slice(1)}</span>
           </label>)}
         </div>
-        <h4 className="sechead">Theme colour</h4>
+        <h4 className="sechead" style={{ borderBottom: 'none' }}>Theme colour</h4>
         <div className="swatches" aria-label="Theme colour">
           {Object.entries(ACCENTS).map(([name, colors]) => <button key={name} type="button"
             className={`swatch ${theme.accent === name ? 'on' : ''}`} title={name} aria-label={`${name} theme colour`}

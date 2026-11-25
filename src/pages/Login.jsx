@@ -114,8 +114,11 @@ export default function Login({ notice }) {
               Create account
             </button>
           </p>
-          <p className="foot">Concerns? Email <a href="mailto:accord.laconcepcioncollege@gmail.com">accord.laconcepcioncollege@gmail.com</a></p>
         </form>
+        <p className="auth-contact">
+          Concerns? Email{" "}
+          <a href="mailto:accord.laconcepcioncollege@gmail.com">accord.laconcepcioncollege@gmail.com</a>
+        </p>
       </main>
 
       {forgot && (

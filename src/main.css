@@ -1,4 +1,4 @@
-﻿/* ---------- tokens ---------- */
+/* ---------- tokens ---------- */
 :root {
   --font: 'Poppins', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --serif: var(--font);
@@ -102,7 +102,7 @@ aside:hover .navbadge, aside:focus-within .navbadge { position: static; margin-l
 .tile.fill { background: linear-gradient(135deg, var(--navy), var(--deep)); border-color: transparent; }
 .tile.fill .ico { background: var(--blue); border-color: var(--blue); color: #fff; }
 .tile.click::after {
-  content: 'â€º'; margin-left: auto; flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+  content: '>'; margin-left: auto; flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
   font-size: 20px; line-height: 1; color: var(--head); background: var(--ice-soft);
 }
 .tile.fill.click::after { background: rgba(255, 255, 255, .14); color: #fff; }
@@ -354,9 +354,9 @@ nav a.active, aside, aside:hover, aside:focus-within { box-shadow: none !importa
 
 /* Forgot-password rules checklist */
 .pwrules { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
-.pwrules li::before { content: 'â—‹ '; }
+.pwrules li::before { content: '\25CB '; }
 .pwrules li.ok { color: var(--green); }
-.pwrules li.ok::before { content: 'âœ“ '; }
+.pwrules li.ok::before { content: '\2713 '; }
 
 /* Clickable logo */
 .logolink { display: block; color: inherit; text-decoration: none; }
@@ -575,3 +575,6 @@ button[aria-busy="true"] { pointer-events: none; }
   .layout, .layout.np { padding: 0 0 calc(92px + env(safe-area-inset-bottom)) !important; }
   .content { background: transparent; border-radius: 0; box-shadow: none; padding: 12px 12px 24px; min-height: 0; }
 }
+
+.auth-contact { margin: 0; text-align: center; font-size: 13px; color: var(--ice); }
+.auth-contact a { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

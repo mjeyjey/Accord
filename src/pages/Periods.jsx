@@ -849,7 +849,7 @@ export default function Periods() {
             <div className="progact" title={HINT}>
               <ExportMenu
                 small
-                label={`Export ${info.code}`}
+                label="Export"
                 onExport={(f) => doExportMany(list, f, info.code)}
                 disabled={locked || !list.some((y) => y.count)}
               />
