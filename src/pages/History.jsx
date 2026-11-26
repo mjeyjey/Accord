@@ -15,6 +15,7 @@ import Trash from "../components/Trash";
 import EndedPeriods from "../components/EndedPeriods";
 import { save } from "../lib/exportSchedule";
 import { useMe } from "../lib/me";
+import Icon from "../components/icons";
 const ACTIONS = {
   create: { label: "Added", tone: "green" },
   update: { label: "Updated", tone: "blue" },
@@ -187,26 +188,32 @@ export default function History({ trashOnly = false }) {
   });
   return (
     <>
-      <div className="tabs">
+      <div className="tabs" data-tour="hist-tabs">
         {!trashOnly && (
           <button
             className={tab === "activity" ? "on" : ""}
             onClick={() => setTab("activity")}
+            title="Activity"
+            aria-label="Activity"
           >
-            Activity
+            <Icon name="list" size={16} /><span className="btxt">Activity</span>
           </button>
         )}
         <button
           className={tab === "periods" ? "on" : ""}
           onClick={() => setTab("periods")}
+          title="Previous exam periods"
+          aria-label="Previous exam periods"
         >
-          Previous exam periods
+          <Icon name="archive" size={16} /><span className="btxt">Previous exam periods</span>
         </button>
         <button
           className={tab === "trash" ? "on" : ""}
           onClick={() => setTab("trash")}
+          title="Trash"
+          aria-label="Trash"
         >
-          Trash
+          <Icon name="trash" size={16} /><span className="btxt">Trash</span>
         </button>
       </div>
       {tab === "trash" ? (

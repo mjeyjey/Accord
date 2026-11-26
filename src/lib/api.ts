@@ -31,7 +31,7 @@ export const api = {
   otp: (body: any) => call('otp', 'POST', body),
   assistant: (messages: { role: string; content: string }[]) =>
     call<{ reply: string; links: { label: string; to: string }[] }>('assistant', 'POST', { messages }),
-  action: (action: 'generate' | 'reassign' | 'emergency' | 'candidates' | 'requests' | 'accept' | 'import_curriculum' | 'import_rooms' | 'proctor_schedule' | 'room_options' | 'set_room' | 'swap_room' | 'resolve_unplaced' | 'user_profile' | 'review_period' | 'reschedule' | 'backup' | 'subject_catalog' | 'proctor_subjects' | 'set_proctor_subjects', body: any) => call(`schedule?action=${action}`, 'POST', body),
+  action: (action: 'generate' | 'reassign' | 'emergency' | 'candidates' | 'requests' | 'accept' | 'import_curriculum' | 'import_rooms' | 'proctor_schedule' | 'room_options' | 'set_room' | 'swap_room' | 'resolve_unplaced' | 'user_profile' | 'review_period' | 'reschedule' | 'backup' | 'subject_catalog' | 'proctor_subjects' | 'set_proctor_subjects' | 'special_list' | 'special_add' | 'special_delete', body: any) => call(`schedule?action=${action}`, 'POST', body),
 };
 
 export const FLOORS = ['Ground', '1st', '2nd', '3rd', '4th', '5th'];

@@ -153,6 +153,7 @@ export default function App() {
   // Always start on the dashboard: on page refresh and right after logging in.
   useEffect(() => {
     if (pathname !== "/") nav("/", { replace: true });
+    window.scrollTo(0, 0);
   }, [me?.id]);
   const refreshBulls = () =>
     api

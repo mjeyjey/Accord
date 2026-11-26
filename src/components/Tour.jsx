@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const TAIL = [
   { t: 'bulletin', title: 'Bulletin', body: 'Announcements for the whole school or your department appear here. A red dot means something new was posted.' },
@@ -12,24 +13,38 @@ const TAIL = [
 
 const MANAGER = [
   { title: 'Welcome to Accord', body: 'Accord builds and manages exam schedules for La Concepcion College. Here is a quick look around. It takes about a minute.' },
-  { t: 'nav-/', title: 'Dashboard', body: 'Your overview: today’s exams, available proctors, emergencies and exams that still need a proctor or room.' },
-  { t: 'nav-/periods', title: 'Exam periods', body: 'Create a period, generate the schedule, fix unplaced exams, edit blocks (proctor, room, swap, reschedule) and export as PDF or PNG. Admins approve the final schedule here.' },
-  { t: 'nav-/config', title: 'Configuration', body: 'Set up programs, subjects, sections, rooms and proctors. You can import rooms from a spreadsheet and curriculum from evaluation-sheet PDFs. New account requests are approved here too.' },
-  { t: 'nav-/reports', title: 'Reports', body: 'Placement rate, exams per day, proctor workload and room usage, with a downloadable report.' },
-  { t: 'nav-/history', title: 'History', body: 'See who did what, and restore deleted records from Trash within 30 days.' },
+  { t: 'nav-/', go: '/', title: 'Dashboard', body: 'Your overview of everything happening in the exam periods. Let’s look inside.' },
+  { t: 'dash-tiles', go: '/', title: 'Summary tiles', body: 'Scheduled sections, available proctors, rooms and emergency flags. Click a tile to jump to its page or section.' },
+  { t: 'dash-cal', go: '/', title: 'Calendar', body: 'Dates in blue have exams. Click a date to see its exams, or search by section, subject, room or proctor.' },
+  { t: 'dash-emg', go: '/', title: 'Proctor emergencies', body: 'Exams whose proctor reported an emergency. Use Find replacement to pick a free proctor.' },
+  { t: 'dash-avail', go: '/', title: 'Available proctors', body: 'Proctors who entered availability and have no exams yet. Filter by Assigned or All.' },
+  { t: 'nav-/periods', go: '/periods', title: 'Exam periods', body: 'Create a period, generate the schedule, fix problems and export. Let’s look inside.' },
+  { t: 'per-bar', go: '/periods', title: 'Period controls', body: 'Choose a period, set how late proctors can accept open blocks, then Generate, Edit, Approve (admins) or Delete. Special exams are for irregular students.' },
+  { t: 'per-tiles', go: '/periods', title: 'Period summary', body: 'Sections, scheduled and unscheduled sections, and exam days used. Click Unscheduled to see only problems.' },
+  { t: 'per-filter', go: '/periods', title: 'Filters and export', body: 'Filter by program or problems, expand a department, open a year level to edit blocks, and download PDF/PNG/CSV.' },
+  { t: 'nav-/config', go: '/config', title: 'Configuration', body: 'Set up your data. Let’s look inside.' },
+  { t: 'cfg-tabs', go: '/config', title: 'Setup tabs', body: 'Programs, subjects, sections, rooms, proctors and account requests. Admins also manage departments and heads.' },
+  { t: 'crud', go: '/config', title: 'Tables', body: 'Search, filter, add, edit or delete. Use Select for bulk actions. You can import rooms from a spreadsheet and curriculum from PDFs.' },
+  { t: 'nav-/reports', go: '/reports', title: 'Reports', body: 'Charts and numbers for a period. Let’s look inside.' },
+  { t: 'rep-bar', go: '/reports', title: 'Period and export', body: 'Pick the exam period and download the full report as CSV, PDF or PNG.' },
+  { t: 'rep-tiles', go: '/reports', title: 'Report numbers', body: 'Below are placement rate, exams per day, proctor workload, room usage and a list of exams that could not be placed.' },
+  { t: 'nav-/history', go: '/history', title: 'History', body: 'Everything that happened in the system. Let’s look inside.' },
+  { t: 'hist-tabs', go: '/history', title: 'History tabs', body: 'Activity shows who did what. Previous exam periods keeps ended periods for download. Trash restores deleted records within 30 days.' },
   ...TAIL,
 ];
 
 const PROCTOR = [
   { title: 'Welcome to Accord', body: 'Accord shows you the exams you proctor and lets you pick up open ones. Here is a quick look around.' },
-  { t: 'nav-/availability', title: 'My availability', body: 'Enter the days and hours you are free before an exam period starts. Availability locks once the period begins.' },
-  { t: 'nav-/requests', title: 'Assignment requests', body: 'Open exam blocks with no proctor yet. Accept the ones that fit your schedule before the cutoff set for that period.' },
-  { t: 'nav-/my-schedule', title: 'My schedule', body: 'Your assigned exams with date, time, room and subjects. If something comes up, flag an emergency here.' },
+  { t: 'nav-/availability', go: '/availability', title: 'My availability', body: 'Enter the days and hours you are free before an exam period starts. Availability locks once the period begins.' },
+  { t: 'nav-/requests', go: '/requests', title: 'Assignment requests', body: 'Open exam blocks with no proctor yet. Accept the ones that fit your schedule before the cutoff set for that period.' },
+  { t: 'nav-/my-schedule', go: '/my-schedule', title: 'My schedule', body: 'Your assigned exams with date, time, room and subjects. If something comes up, flag an emergency here.' },
   ...TAIL,
 ];
 
 export default function Tour({ role, onClose }) {
   const steps = role === 'proctor' ? PROCTOR : MANAGER;
+  const nav = useNavigate();
+  const { pathname } = useLocation();
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
   const [pos, setPos] = useState({ left: 0, top: 0 });
@@ -37,14 +52,31 @@ export default function Tour({ role, onClose }) {
   const step = steps[i];
   const last = i === steps.length - 1;
   const find = () => (step.t ? document.querySelector(`[data-tour="${step.t}"]`) : null);
+  const finish = () => { nav(role === 'proctor' ? '/my-schedule' : '/'); window.scrollTo(0, 0); onClose(); };
 
   const measure = () => {
-    const el = find();
-    const r = el?.getBoundingClientRect();
+    const r = find()?.getBoundingClientRect();
     setRect(r && (r.width || r.height) ? { left: r.left, top: r.top, width: r.width, height: r.height } : null);
   };
 
-  useLayoutEffect(() => { find()?.scrollIntoView?.({ block: 'nearest' }); measure(); }, [i]);
+  // Go to the step's page, then wait for the element to appear (pages load data first).
+  useEffect(() => {
+    if (step.go && step.go !== pathname) nav(step.go);
+    if (!step.t) window.scrollTo(0, 0);
+    setRect(null);
+    let tries = 0;
+    const id = setInterval(() => {
+      const el = find();
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (!el.closest('aside,.topbar') && (r.top < 90 || r.bottom > window.innerHeight - 20))
+          el.scrollIntoView({ block: r.height > window.innerHeight * 0.6 ? 'start' : 'center' });
+        measure(); clearInterval(id);
+      } else if (++tries > 30) clearInterval(id);
+    }, 100);
+    return () => clearInterval(id);
+  }, [i]);
+
   useEffect(() => {
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
@@ -67,8 +99,8 @@ export default function Tour({ role, onClose }) {
 
   useEffect(() => {
     const k = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') last ? onClose() : setI((n) => n + 1);
+      if (e.key === 'Escape') finish();
+      if (e.key === 'ArrowRight') last ? finish() : setI((n) => n + 1);
       if (e.key === 'ArrowLeft') setI((n) => Math.max(0, n - 1));
     };
     document.addEventListener('keydown', k);
@@ -85,10 +117,10 @@ export default function Tour({ role, onClose }) {
         <h4>{step.title}</h4>
         <p>{step.body}</p>
         <div className="tour-actions">
-          {!last && <button className="ghost sm" onClick={onClose}>Skip tour</button>}
+          {!last && <button className="ghost sm" onClick={finish}>Skip tour</button>}
           <span className="grow" />
           {i > 0 && <button className="ghost sm" onClick={() => setI(i - 1)}>Back</button>}
-          <button className="sm" autoFocus onClick={() => (last ? onClose() : setI(i + 1))}>{last ? 'Finish' : 'Next'}</button>
+          <button className="sm" autoFocus onClick={() => (last ? finish() : setI(i + 1))}>{last ? 'Finish' : 'Next'}</button>
         </div>
       </div>
     </div>

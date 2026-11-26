@@ -205,8 +205,8 @@ export default function Overview() {
     ...Array.from({ length: nDays }, (_, i) => i + 1),
   ];
   return (
-    <>
-      <div className="grid">
+    <div className="dash">
+      <div className="grid" data-tour="dash-tiles">
         {tiles.map(([k, v, icon, tone, go], i) => (
           <div
             className={`tile click ${tone} ${i === 0 ? "fill" : ""}`}
@@ -240,7 +240,7 @@ export default function Overview() {
           </div>
           <AreaChart data={Object.entries(byDate).sort()} />
         </section>
-        <section className="card">
+        <section className="card cal" data-tour="dash-cal">
           <div className="bar card-head" style={{ marginBottom: 6 }}>
             <h3 style={{ margin: 0, flex: 1 }}>
               {first.toLocaleDateString("en-US", {
@@ -253,21 +253,21 @@ export default function Overview() {
               onClick={() => setMonth(month - 1)}
               aria-label="Previous month"
             >
-              ‹
+              {"<"}
             </button>
             <button
               className="ghost nav"
               onClick={() => setMonth(month + 1)}
               aria-label="Next month"
             >
-              ›
+              {">"}
             </button>
             <Help
               align="right"
               text="Click a date to see the exams scheduled on it. Dates filled in blue have exams."
             />
           </div>
-          {ok.length > 0 && (
+          {ok.length > 0 && !day && (
             <input
               className="searchbox"
               placeholder="Search section, subject, room or proctor"
@@ -356,7 +356,18 @@ export default function Overview() {
                 {short(day)}{" "}
                 <span className="muted">{dayRows.length} exam hour(s)</span>
               </h4>
-              <div className="scroll" style={{ maxHeight: 260 }}>
+              {mobile ? (
+                <div className="mlist fitday">
+                  {dayRows.map((s) => (
+                    <MRow key={s.id}
+                      title={`${t5(s.start_time)} · ${s.program?.code} ${s.section?.year_level}${s.section?.name}`}
+                      sub={s.subject?.code}
+                      onHold={() => setDet({ kind: "exam", s })} />
+                  ))}
+                  {!dayRows.length && <p className="empty">No exams on this date.</p>}
+                  {dayRows.length > 0 && <p className="mobhint">Hold a row for room and proctor</p>}
+                </div>
+              ) : ( <div className="scroll" style={{ maxHeight: 260 }}>
                 <table>
                   <thead>
                     <tr>
@@ -391,7 +402,7 @@ export default function Overview() {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </div> )}
             </>
           )}
         </section>
@@ -408,7 +419,7 @@ export default function Overview() {
           </div>
           <BarChart data={Object.entries(byProg)} limit={8} />
         </section>
-        <section className="card ctr">
+        <section className="card ctr plc">
           <div className="card-head">
             <h3>Placement rate</h3>
             <Help
@@ -427,7 +438,7 @@ export default function Overview() {
       </div>
 
       <div className="two">
-        <section className="card" id="emergencies">
+        <section className="card" id="emergencies" data-tour="dash-emg">
           <div className="card-head">
             <h3>Proctor emergencies</h3>
             <Help
@@ -498,7 +509,7 @@ export default function Overview() {
           )}
         </section>
 
-        <section className="card" id="available">
+        <section className="card" id="available" data-tour="dash-avail">
           <div className="card-head">
             <h3>Available proctors</h3>
             <Help
@@ -595,31 +606,26 @@ export default function Overview() {
 
       {view && <ProfileView userId={view} onClose={() => setView("")} />}
       {det && (
-        <Modal title={det.kind === "emg" ? "Proctor emergency" : "Proctor"} onClose={() => setDet(null)}
+        <Modal title={det.kind === "emg" ? "Proctor emergency" : det.kind === "exam" ? "Exam" : "Proctor"} onClose={() => setDet(null)}
           footer={det.kind === "emg"
-            ? <>
-                <button className="ghost" onClick={() => setDet(null)}>Close</button>
-                <button onClick={() => { const id = det.s.id; setDet(null); setRep(id); }}>Find replacement</button>
-              </>
-            : <>
-                <button className="ghost" onClick={() => setDet(null)}>Close</button>
-                <button onClick={() => { const id = det.p.id; setDet(null); setView(id); }}>View profile</button>
-              </>}>
-          {det.kind === "emg" ? [
-            ["Date", short(det.s.exam_date)],
-            ["Time", `${t5(det.s.start_time)}-${t5(det.s.end_time)}`],
+            ? <><button className="ghost" onClick={() => setDet(null)}>Close</button><button onClick={() => { const id = det.s.id; setDet(null); setRep(id); }}>Find replacement</button></>
+            : det.kind === "exam"
+            ? <button onClick={() => setDet(null)}>Close</button>
+            : <><button className="ghost" onClick={() => setDet(null)}>Close</button><button onClick={() => { const id = det.p.id; setDet(null); setView(id); }}>View profile</button></>}>
+          {(det.kind === "emg" ? [
+            ["Date", short(det.s.exam_date)], ["Time", `${t5(det.s.start_time)}-${t5(det.s.end_time)}`],
             ["Section", `${det.s.program?.code} Y${det.s.section?.year_level}${det.s.section?.name}`],
-            ["Proctor", det.s.proctor?.full_name],
-            ["Note", det.s.emergency_note || "-"],
-          ].map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)
-          : [
-            ["Name", det.p.name],
-            ["Department", det.p.dept],
+            ["Proctor", det.s.proctor?.full_name], ["Note", det.s.emergency_note || "-"],
+          ] : det.kind === "exam" ? [
+            ["Time", `${t5(det.s.start_time)}-${t5(det.s.end_time)}`],
+            ["Section", `${det.s.program?.code} ${det.s.section?.year_level}${det.s.section?.name}`],
+            ["Subject", `${det.s.subject?.code} ${det.s.subject?.title || ""}`],
+            ["Room", det.s.room?.name || "TBA"], ["Proctor", det.s.proctor?.full_name || "To be announced"],
+          ] : [
+            ["Name", det.p.name], ["Department", det.p.dept],
             ["Dates", !det.p.first ? "-" : det.p.first === det.p.last ? short(det.p.first) : `${short(det.p.first)} - ${short(det.p.last)}`],
-            ["Days", det.p.days.size],
-            ["Hours", det.p.hours],
-            ["Status", det.p.assigned ? "Assigned" : "Available"],
-          ].map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)}
+            ["Days", det.p.days.size], ["Hours", det.p.hours], ["Status", det.p.assigned ? "Assigned" : "Available"],
+          ]).map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)}
         </Modal>
       )}
       {rep && (
@@ -629,6 +635,6 @@ export default function Overview() {
           onDone={load}
         />
       )}
-    </>
+    </div>
   );
 }

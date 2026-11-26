@@ -256,6 +256,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ ok: true, status: approve ? "approved" : "generated" });
     }
 
+    if (action === "special_list") {
+      const rows = await fetchAll(() => db.from("special_exams")
+        .select("*, room:rooms(name,floor), proctor:profiles(full_name), program:programs(code,department_id)")
+        .eq("period_id", b.period_id).order("exam_date").order("start_time").order("id"));
+      return res.json(me.role === "head" ? rows.filter((r: any) => r.program?.department_id === me.department_id) : rows);
+    }
+    if (action === "special_add") {
+      const { data: s } = await db.from("schedules")
+        .select("id,period_id,program_id,section:sections(name,year_level),subject:subjects(code,title),program:programs(code,department_id)")
+        .eq("id", b.schedule_id).single();
+      if (!s) return res.status(404).json({ error: "Exam not found" });
+      const prog: any = (s as any).program;
+      if (me.role === "head" && prog?.department_id !== me.department_id) return res.status(403).json({ error: "Outside your department" });
+      const date = String(b.exam_date || ""), start = hhmm(String(b.start_time || ""));
+      const name = String(b.student_name || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || ![...SLOTS.AM, ...SLOTS.PM].includes(start) || !name)
+        return res.status(400).json({ error: "Student name, date and start hour are required" });
+      const { data: period } = await db.from("exam_periods").select("start_date,end_date,status").eq("id", s.period_id).single();
+      if (!period || period.status === "ended" || date < period.start_date || date > period.end_date)
+        return res.status(400).json({ error: "Pick a date inside the exam period" });
+      const [reg, sp] = await Promise.all([
+        fetchAll(() => db.from("schedules").select("room_id,proctor_id").eq("exam_date", date).eq("start_time", start).eq("status", "scheduled").order("id")),
+        fetchAll(() => db.from("special_exams").select("room_id,proctor_id").eq("exam_date", date).eq("start_time", start).order("id")),
+      ]);
+      const used = [...reg, ...sp];
+      if (b.room_id) {
+        if (used.some((x: any) => x.room_id === b.room_id)) return res.status(409).json({ error: "That room is already used at that time" });
+        const { data: room } = await db.from("rooms").select("floor").eq("id", b.room_id).single();
+        const fl = await fetchAll(() => db.from("programs").select("floor").eq("department_id", prog.department_id).order("id"));
+        if (!room || !fl.some((p: any) => p.floor === room.floor))
+          return res.status(409).json({ error: "That room is not on a floor assigned to this department" });
+      }
+      if (b.proctor_id && used.some((x: any) => x.proctor_id === b.proctor_id))
+        return res.status(409).json({ error: "That proctor is already assigned at that time" });
+      const sec: any = (s as any).section, sub: any = (s as any).subject;
+      const { error } = await db.from("special_exams").insert({
+        period_id: s.period_id, schedule_id: s.id, program_id: s.program_id,
+        section_label: `${prog?.code} ${sec?.year_level}${sec?.name}`, subject_code: sub?.code, subject_title: sub?.title,
+        student_name: name, student_no: b.student_no || null, reason: b.reason || null,
+        exam_date: date, start_time: start, end_time: endOf(start),
+        room_id: b.room_id || null, proctor_id: b.proctor_id || null, created_by: me.id,
+      });
+      if (error) throw error;
+      if (b.proctor_id)
+        await notify([{ user_id: b.proctor_id, kind: "assignment", title: "Special exam assigned",
+          body: `You will proctor a special exam (${sub?.code}) on ${date}, ${start}-${endOf(start)}.` }]);
+      await log(me, "create", "special_exams", { name: `${name} ${sub?.code}` });
+      return res.json({ ok: true });
+    }
+    if (action === "special_delete") {
+      const { data: r } = await db.from("special_exams").select("id,program:programs(department_id)").eq("id", b.id).single();
+      if (!r) return res.status(404).json({ error: "Not found" });
+      if (me.role === "head" && (r as any).program?.department_id !== me.department_id) return res.status(403).json({ error: "Outside your department" });
+      const { error } = await db.from("special_exams").delete().eq("id", b.id);
+      if (error) throw error;
+      return res.json({ ok: true });
+    }
+
     if (action === "backup") {
       if (me.role !== "admin") return res.status(403).json({ error: "Only an admin can download a backup" });
       const names = ["departments", "programs", "profiles", "subjects", "sections", "rooms", "availability", "exam_periods", "schedules", "audit_log", "trash", "bulletins"];

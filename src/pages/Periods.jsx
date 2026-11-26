@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { api, floorLabel, t5 } from "../lib/api";
 import { useMe } from "../lib/me";
 import {
@@ -18,6 +18,7 @@ import { exportTable } from "../lib/exportTable";
 import EditBlockModal from "../components/EditBlockModal";
 import ResolveUnplacedModal from "../components/ResolveUnplacedModal";
 import CountUp from "../components/CountUp";
+import SpecialExams from "../components/SpecialExams";
 const fmt = (d) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-PH", {
     weekday: "short",
@@ -72,6 +73,7 @@ export default function Periods() {
   const [editBlock, setEditBlock] = useState(null);
   const [resolve, setResolve] = useState(null);
   const [rep, setRep] = useState("");
+  const [special, setSpecial] = useState(false);
   const loadSched = () =>
     api
       .list("schedules")
@@ -322,7 +324,7 @@ export default function Periods() {
     const file = `ExamSchedule_${label}`.replace(/[^\w-]+/g, "_");
     const meta = {
       program: label,
-      subtitle: `${label} Â· all year levels`,
+      subtitle: `${label} · all year levels`,
       file,
       period: period?.name || "Exam period",
       start: period?.start_date,
@@ -476,7 +478,7 @@ export default function Periods() {
             <strong>{fmt(f.exam_date)}</strong>
             {f.room ? (
               <span className="muted">
-                Room {f.room.name} Â· {floorLabel(f.room.floor)}{" "}
+                Room {f.room.name} · {floorLabel(f.room.floor)}{" "}
                 {tooSmall && <Badge tone="amber">Over capacity</Badge>}
               </span>
             ) : (
@@ -541,7 +543,7 @@ export default function Periods() {
         </button>
       </div>
 
-      <section className="card">
+      <section className="card" data-tour="per-bar">
         <div className="bar" style={{ marginBottom: 0 }}>
           <select
             value={sel}
@@ -631,8 +633,9 @@ export default function Periods() {
             </button>
           )}
           {sel && (
-            <button className="ghost" disabled={locked} onClick={openEdit}>Edit period</button>
+            <button className="ghost" disabled={locked} onClick={openEdit} title="Edit period" aria-label="Edit period"><Icon name="edit" size={16} /><span className="btxt">Edit period</span></button>
           )}
+          {sel && <button className="ghost" onClick={() => setSpecial(true)} title="Special exams" aria-label="Special exams"><Icon name="clock" size={16} /><span className="btxt">Special exams</span></button>}
           {sel && (
             <button
               disabled={busy || locked}
@@ -640,7 +643,7 @@ export default function Periods() {
               onClick={generate}
             >
               {busy
-                ? "Generatingâ€¦"
+                ? "Generating…"
                 : period?.status === "draft"
                   ? "Generate schedule"
                   : "Regenerate"}
@@ -652,14 +655,16 @@ export default function Periods() {
               disabled={locked}
               aria-busy={locked}
               onClick={removePeriod}
+              title="Delete period"
+              aria-label="Delete period"
             >
-              Delete period
+              <Icon name="trash" size={16} /><span className="btxt">Delete period</span>
             </button>
           )}
         </div>
       </section>
 
-      <div className="grid">
+      <div className="grid" data-tour="per-tiles">
         {tiles.map(([k, v, icon, tone, to, act], i) => (
           <div
             className={`tile ${to || act ? "click" : ""} ${tone} ${i === 0 ? "fill" : ""} ${k === "Unscheduled" && onlyUnplaced ? "on" : ""}`}
@@ -675,14 +680,14 @@ export default function Periods() {
               <Icon name={icon} />
             </span>
             <div>
-              <b>{sched === null ? "â€“" : <CountUp value={v} />}</b>
+              <b><CountUp value={sched === null ? 0 : v} /></b>
               <span>{k}</span>
             </div>
           </div>
         ))}
       </div>
 
-      <section className="card">
+      <section className="card" data-tour="per-filter">
         <div className="bar" style={{ marginBottom: 0 }}>
           <select
             value={fp}
@@ -780,7 +785,7 @@ export default function Periods() {
                 {info.logo && <img className="dlogo" src={info.logo} alt="" />}
                 <span className="pname">{info.code}</span>
                 <span className="muted">
-                  {info.name ? `${info.name} Â· ` : ""}
+                  {info.name ? `${info.name} · ` : ""}
                   {list.length} year level{list.length === 1 ? "" : "s"}
                 </span>
                 {issues > 0 && (
@@ -811,7 +816,7 @@ export default function Periods() {
                           </Badge>
                         </div>
                         <div className="yc-meta">
-                          {y.count} exams Â· {dates.length} exam day
+                          {y.count} exams · {dates.length} exam day
                           {dates.length === 1 ? "" : "s"}
                         </div>
                         <div className="chips" style={{ marginBottom: 0 }}>
@@ -849,7 +854,7 @@ export default function Periods() {
             <div className="progact" title={HINT}>
               <ExportMenu
                 small
-                label="Export"
+                label={`Export ${info.code}`}
                 onExport={(f) => doExportMany(list, f, info.code)}
                 disabled={locked || !list.some((y) => y.count)}
               />
@@ -870,7 +875,7 @@ export default function Periods() {
       {oy && (
         <Modal
           wide
-          title={`${oy.prog} Â· Year ${oy.year}`}
+          title={`${oy.prog} · Year ${oy.year}`}
           onClose={closeDetail}
           footer={
             <>
@@ -918,7 +923,7 @@ export default function Periods() {
                       <h5>
                         Pending{" "}
                         <span>
-                          waiting for a proctor or room Â· {pend.length}
+                          waiting for a proctor or room · {pend.length}
                         </span>
                       </h5>
                       {pend.map((r) => renderBatch(r))}
@@ -974,7 +979,7 @@ export default function Periods() {
                 disabled={saving || locked}
                 aria-busy={locked}
               >
-                {saving ? "Creatingâ€¦" : editId ? "Save changes" : "Create period"}
+                {saving ? "Creating…" : editId ? "Save changes" : "Create period"}
               </button>
             </>
           }
@@ -1029,22 +1034,12 @@ export default function Periods() {
             </div>
             <div className="bar" style={{ marginTop: 18 }}>
               <strong style={{ flex: 1 }}>Programs *</strong>
-              <button
-                type="button"
-                className="ghost sm"
-                onClick={() => {
-                  setForm({ ...form, program_ids: progs.map((p) => p.id) });
-                  setFerr({ ...ferr, program_ids: "" });
-                }}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                className="ghost sm"
-                onClick={() => setForm({ ...form, program_ids: [] })}
-              >
-                Clear
+              <button type="button" className="ghost sm" onClick={() => {
+                const all = progs.length > 0 && form.program_ids.length === progs.length;
+                setForm({ ...form, program_ids: all ? [] : progs.map((p) => p.id) });
+                setFerr({ ...ferr, program_ids: "" });
+              }}>
+                {progs.length > 0 && form.program_ids.length === progs.length ? "Clear" : "Select all"}
               </button>
             </div>
             <div className="checks">
@@ -1089,6 +1084,7 @@ export default function Periods() {
           onDone={loadSched}
         />
       )}
+      {special && <SpecialExams periodId={sel} rows={(sched || []).filter((x) => x.period_id === sel && x.status === "scheduled")} onClose={() => setSpecial(false)} />}
     </>
   );
 }

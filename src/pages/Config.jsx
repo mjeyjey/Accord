@@ -342,7 +342,7 @@ export default function Config() {
             key={tab}
             table="programs"
             title="Programs and floors"
-            hint="The floor is where this program's exams are held. The scheduler uses rooms on that floor first, then the nearest floors."
+            hint="The floor is where this program's exams are held. Only rooms on the floors of the department's programs are used."
             filter={(r) => byDept(r) && (!progFilter || r.id === progFilter)}
             sort={(a, b) => cmp(a.code, b.code)}
             toolbar={

@@ -211,7 +211,7 @@ export default function Reports() {
     );
   return (
     <>
-      <div className="bar">
+      <div className="bar" data-tour="rep-bar">
         <span style={{ flex: 1 }} />
         <select
           name="period"
@@ -228,7 +228,7 @@ export default function Reports() {
         <ExportMenu onExport={doExport} disabled={!ok.length} />
       </div>
 
-      <div className="grid">
+      <div className="grid" data-tour="rep-tiles">
         {tiles.map(([k, v, icon, tone], i) => (
           <div className={`tile ${tone} ${i === 0 ? "fill" : ""}`} key={k}>
             <span className="ico">

@@ -31,7 +31,7 @@ export default function TabScroller({ children }) {
   }, []);
   useEffect(check);
   return (
-    <div className="tabswrap">
+    <div className="tabswrap" data-tour="cfg-tabs">
       <div className="tabs" ref={ref} onScroll={check}>{children}</div>
       <span className={`tabedge l ${edge.l ? "show" : ""}`}><Chev flip /></span>
       <span className={`tabedge r ${edge.r ? "show" : ""}`}><Chev /></span>

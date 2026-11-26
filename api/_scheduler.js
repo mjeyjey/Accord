@@ -7,6 +7,7 @@ export const FLOORS = ["Ground", "1st", "2nd", "3rd", "4th", "5th"];
 export const MAX_PER_DAY = 5; // max exams one section can have in a single day
 // true = a section never leaves its own exam days (days_per_year). Hours that don't fit are reported as unplaced.
 export const STRICT_DAYS = true;
+export const STRICT_FLOORS = true;
 // Order in which the year levels of ONE program are stacked through the day (morning first).
 // [2,1,3,4] => Y2 8:00, Y1 right after, then Y3, then Y4 (same as the printed BSIS schedule).
 export const YEAR_ORDER = [2, 1, 3, 4];
@@ -111,8 +112,11 @@ export function buildSchedule(inp) {
   }
   const deptIds = [...new Set(programs.map((p) => p.department_id))].sort();
   const progById = new Map(programs.map((p) => [p.id, p]));
+  const deptFloors = new Map();
+  for (const p of programs) (deptFloors.get(p.department_id) || deptFloors.set(p.department_id, new Set()).get(p.department_id)).add(p.floor);
+  const allowed = (r, prog) => ignoreCapacity || !STRICT_FLOORS ||
+    (!!deptFloors.get(prog.department_id)?.has(r.floor) && (!r.department_id || r.department_id === prog.department_id));
   const roomNum = (r) => parseInt(String(r.name).replace(/\D/g, ""), 10) || 0;
-  const maxCap = ignoreCapacity ? Infinity : Math.max(0, ...rooms.map((r) => r.capacity));
   const floorIdx = (f) => FLOORS.indexOf(f);
   const free = (set, id, d, slots) =>
     slots.every((t) => !set.has(`${id}|${d}|${t}`));
@@ -176,7 +180,7 @@ export function buildSchedule(inp) {
         const dept = prog.department_id;
         const homeFloor = floorIdx(prog.floor);
         const room = rooms
-          .filter((r) => (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
+          .filter((r) => allowed(r, prog) && (!dayRoom || r.id === dayRoom) && (ignoreCapacity || r.capacity >= sec.student_count) && free(roomUsed, r.id, d, slots))
           .sort((a, b) =>
             // 1) the program's own floor, then the nearest floors
             Math.abs(floorIdx(a.floor) - homeFloor) - Math.abs(floorIdx(b.floor) - homeFloor) ||
@@ -279,10 +283,9 @@ export function buildSchedule(inp) {
       (s) => s.program_id === sec.program_id && s.year_level === sec.year_level,
     );
     if (!subs.length) continue;
+    const maxCap = ignoreCapacity ? Infinity : Math.max(0, ...rooms.filter((r) => allowed(r, prog)).map((r) => r.capacity));
     if (sec.student_count > maxCap) {
-      subs.forEach((s) =>
-        fail(sec, s, `No room can hold ${sec.student_count} students`),
-      );
+      subs.forEach((s) => fail(sec, s, `No room on its department's floor can hold ${sec.student_count} students`));
       continue;
     }
     const ck = `${sec.program_id}|${sec.year_level}`;

@@ -4,6 +4,20 @@ import { LogoMark } from "../components/Logo";
 import { Field, Modal, useLock } from "../components/ui";
 import SignupModal from "../components/SignupModal";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
+const TERMS = [
+  ["1. Acceptance of terms", "By signing in to Accord you confirm that you have read, understood and agree to these Terms and Conditions. If you do not agree, do not use the system."],
+  ["2. Who may use Accord", "Accord is for authorized La Concepcion College administrators, department heads, faculty and proctors. Accounts must be approved by an admin or department head. You may not share, sell or transfer your account to anyone."],
+  ["3. Account security", "Keep your password and verification codes private. Use a strong password, never let others use your account, and log out on shared devices. You are responsible for everything done under your account. Report any suspected unauthorized access to the administrator immediately."],
+  ["4. Acceptable use", "Use Accord only for exam scheduling and related school work. Do not try to view data you are not permitted to see, bypass security, disrupt the service, or enter false availability, emergencies, messages or announcements."],
+  ["5. Schedules and proctor duties", "Generated schedules may change. Proctors who accept an assignment must report on time. Emergencies must be flagged honestly and as early as possible so a replacement can be arranged. Availability locks once an exam period starts."],
+  ["6. Information we collect", "We store your name, email, department, role, optional profile photo, availability, exam assignments, messages sent through Accord, notifications, and a log of actions you perform in the system."],
+  ["7. How your information is used", "Your information is used to build and manage exam schedules, send notifications and verification emails, and keep a record for security and accountability. It is not sold and is not used for advertising."],
+  ["8. Privacy and confidentiality", "Personal data is handled in line with the Data Privacy Act of 2012 (RA 10173). Schedules, student counts, messages and account details are confidential. Use them for school purposes only and do not copy, publish or share them with unauthorized persons."],
+  ["9. Monitoring and records", "Your activity is recorded for security and accountability and may be reviewed by administrators. Deleted records stay in Trash for 30 days before being permanently removed. Administrators may keep backups of system data."],
+  ["10. Service availability and changes", "Accord is provided as is and may be unavailable during maintenance or because of technical problems. These terms may be updated from time to time. Continued use after an update means you accept the new terms."],
+  ["11. Suspension and removal", "The school may suspend or remove an account that violates these terms, is no longer needed, or puts the system or its data at risk."],
+  ["12. Contact", "For questions or concerns, email accord.laconcepcioncollege@gmail.com."],
+];
 export default function Login({ notice }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -128,10 +142,20 @@ export default function Login({ notice }) {
         />
       )}
       {signup && <SignupModal onClose={() => setSignup(false)} />}
-      {terms && <Modal title="Terms and Conditions" onClose={() => setTerms(false)} footer={<button onClick={() => setTerms(false)}>Close</button>}>
-        <p className="dlgtext">Accord is for authorized La Concepcion College staff only. Use your own account, keep your password private, and use schedule data only for school purposes. Your activity is recorded for security and accountability.</p>
-        <p className="dlgtext">Concerns? Email accord.laconcepcioncollege@gmail.com.</p>
-      </Modal>}
+      {terms && (
+        <Modal title="Terms and Conditions" onClose={() => setTerms(false)}
+          footer={<>
+            <button className="ghost" onClick={() => setTerms(false)}>Close</button>
+            <button onClick={() => { setAgree(true); setErrs((x) => ({ ...x, agree: "" })); setTerms(false); }}>Accept all</button>
+          </>}>
+          {TERMS.map(([h, t]) => (
+            <div key={h}>
+              <h4 className="sechead" style={{ fontSize: 15, marginTop: 14 }}>{h}</h4>
+              <p className="dlgtext">{t}</p>
+            </div>
+          ))}
+        </Modal>
+      )}
     </div>
   );
 }

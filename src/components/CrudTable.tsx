@@ -240,7 +240,7 @@ export default function CrudTable(p: Props) {
   const canMenu = p.allowEdit !== false || p.allowDelete !== false;
 
   return (
-    <section className="card">
+    <section className="card" data-tour="crud">
       <div className="bar">
         <h3>{p.title}{rows && <> <span className="badge gray">{shown.length}</span></>}</h3>
         <input placeholder="Search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ width: mobile ? '100%' : 200 }} />

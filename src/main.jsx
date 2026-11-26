@@ -5,6 +5,7 @@ import { UiProvider } from "./components/ui";
 import { applyTheme } from "./lib/theme";
 import "./styles.css";
 import "./main.css";
+history.scrollRestoration = "manual";
 applyTheme();
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
