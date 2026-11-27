@@ -103,11 +103,7 @@ export default function Login({ notice }) {
               )}
             </div>
           </Field>
-          <button
-            type="button"
-            className="link"
-            onClick={() => setForgot(true)}
-          >
+          <button type="button" className="forgot" onClick={() => setForgot(true)}>
             Forgot password?
           </button>
           <label style={{ flexDirection: "row", alignItems: "center", gap: 8, fontWeight: 400, textAlign: "left" }}>

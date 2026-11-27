@@ -431,6 +431,10 @@ export default function Periods() {
     0,
   );
   const allSecs = years.flatMap((y) => Object.values(y.secs));
+  const secPending = (s) => Object.values(s.ok).some((r) => !r[0].proctor_id || !r[0].room_id);
+  const secProblem = (s) => s.bad.length > 0 || Object.values(s.ok).some((r) => r[0].emergency);
+  const pendingCount = allSecs.filter(secPending).length;
+  const problemCount = allSecs.filter(secProblem).length;
   const totalScheduled = allSecs.filter((s) => Object.keys(s.ok).length).length;
   const totalBad = allSecs.filter((s) => s.bad.length).length;
   const totalDays = new Set(years.flatMap((y) => datesOf(y))).size;
@@ -529,7 +533,7 @@ export default function Periods() {
     );
   };
   return (
-    <>
+    <div className="per">
       <div className="pagehead">
         <div>
           <p className="sub">
@@ -595,9 +599,6 @@ export default function Periods() {
             </button>
           )}
           {sel && (
-            <button className="ghost" disabled={locked} onClick={openEdit} title="Edit period" aria-label="Edit period"><Icon name="edit" size={16} /><span className="btxt">Edit period</span></button>
-          )}
-          {sel && (
             <button
               disabled={busy || locked}
               aria-busy={locked}
@@ -608,18 +609,6 @@ export default function Periods() {
                 : period?.status === "draft"
                   ? "Generate schedule"
                   : "Regenerate"}
-            </button>
-          )}
-          {sel && (
-            <button
-              className="ghost red"
-              disabled={locked}
-              aria-busy={locked}
-              onClick={removePeriod}
-              title="Delete period"
-              aria-label="Delete period"
-            >
-              <Icon name="trash" size={16} /><span className="btxt">Delete period</span>
             </button>
           )}
         </div>
@@ -648,6 +637,17 @@ export default function Periods() {
         ))}
       </div>
 
+      <div className="toggles">
+        <button type="button" className={`tgl ${onlyIssues ? "on" : ""}`}
+          onClick={() => { setOnlyIssues((v) => !v); resetOpen(); }}>
+          Only show problems <b>{problemCount}</b>
+        </button>
+        <button type="button" className={`tgl ${onlyPending ? "on" : ""}`}
+          onClick={() => { setOnlyPending((v) => !v); resetOpen(); }}>
+          Pending (proctor or room) <b>{pendingCount}</b>
+        </button>
+      </div>
+
       <section className="card" data-tour="per-filter">
         <div className="bar" style={{ marginBottom: 0 }}>
           <select
@@ -673,42 +673,6 @@ export default function Periods() {
             }}
             style={{ width: 230 }}
           />
-          <label
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              fontWeight: 400,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={onlyIssues}
-              onChange={(e) => {
-                setOnlyIssues(e.target.checked);
-                resetOpen();
-              }}
-            />{" "}
-            Only show problems
-          </label>
-          <label
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              fontWeight: 400,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={onlyPending}
-              onChange={(e) => {
-                setOnlyPending(e.target.checked);
-                resetOpen();
-              }}
-            />{" "}
-            Pending (waiting for a proctor or room)
-          </label>
           <span style={{ flex: 1 }} />
           <button
             className="ghost sm"
@@ -1046,7 +1010,22 @@ export default function Periods() {
         />
       )}
       {info && period && (
-        <Modal title={period.name} onClose={() => setInfo(false)} footer={<button onClick={() => setInfo(false)}>Close</button>}>
+        <Modal
+          title={period.name}
+          onClose={() => setInfo(false)}
+          footer={
+            <>
+              <button className="ghost red" disabled={locked} onClick={() => { setInfo(false); removePeriod(); }}>
+                <Icon name="trash" size={16} /> Delete period
+              </button>
+              <span style={{ flex: 1 }} />
+              <button className="ghost" onClick={() => setInfo(false)}>Close</button>
+              <button disabled={locked} onClick={() => { setInfo(false); openEdit(); }}>
+                <Icon name="edit" size={16} /> Edit period
+              </button>
+            </>
+          }
+        >
           {[["Semester", SEM[period.semester] || "-"], ["Dates", `${period.start_date} to ${period.end_date}`], ["Exam days per year level", period.days_per_year]]
             .map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)}
           <label style={{ marginTop: 12 }}>Proctors can accept until
@@ -1064,6 +1043,6 @@ export default function Periods() {
           </label>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
