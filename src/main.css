@@ -555,7 +555,6 @@ button[aria-busy="true"] { pointer-events: none; }
   .yc-head h4 { font-size: 20px; }
   .daylist li { padding: 8px 10px; }
   .dl-top .muted { font-size: 12px; }
-  .ntext span { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .bhead { gap: 4px; }
 }
 
@@ -605,6 +604,16 @@ button[aria-busy="true"] { pointer-events: none; }
 }
 
 .mlist.fitday { max-height: 38vh; overflow: auto; }
+
+.nitem { flex: none; }
+.rico { background: none; width: auto; height: auto; border-radius: 0; }
+@media (max-width: 600px) {
+  .tabs button svg { width: 22px; height: 22px; }
+  .tabs button { min-height: 44px; padding: 8px 14px; }
+  .dash .epd { order: -3; }
+  .dash .plc { order: -2; }
+  .dash .cal { order: -1; }
+}
 
 :root { --mag: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237B83A1' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E"); }
 input[placeholder*="earch"], input[placeholder*="earch"]:focus {

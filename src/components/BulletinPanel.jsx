@@ -26,6 +26,7 @@ export default function BulletinPanel({
   const [form, setForm] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [max, setMax] = useState(10);
   const start = () => {
     setForm({ title: "", body: "", department_id: "" });
     setErr("");
@@ -143,7 +144,7 @@ export default function BulletinPanel({
           </form>
         )}
 
-        {items.map((b) => {
+        {items.slice(0, max).map((b) => {
           const role = ROLE[b.author?.role];
           const isNew = new Date(b.created_at).getTime() > since;
           const clickable = b.kind === "availability";
@@ -185,6 +186,7 @@ export default function BulletinPanel({
             </div>
           );
         })}
+        {items.length > max && <button className="ghost sm" onClick={() => setMax(max + 10)}>See more</button>}
         {!items.length && (
           <p className="muted" style={{ padding: 16 }}>
             No announcements yet.

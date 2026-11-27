@@ -289,13 +289,14 @@ export function buildSchedule(inp) {
       continue;
     }
     const ck = `${sec.program_id}|${sec.year_level}`;
-    const isAnchor = !cohorts.has(ck);
-    if (isAnchor) cohorts.set(ck, { plan: [], followers: [] });
-    const cohort = cohorts.get(ck);
+    const cohortKey = sec.is_special ? `${ck}|S` : ck;
+    const isAnchor = !cohorts.has(cohortKey);
+    if (isAnchor) cohorts.set(cohortKey, { plan: [], followers: [] });
+    const cohort = cohorts.get(cohortKey);
     if (!isAnchor) { cohort.followers.push({ sec, prog, subs }); continue; }
 
     const nDays = K; // never more than days_per_year
-    const off = (deptIds.indexOf(prog.department_id) * K) % dates.length;
+    const off = (deptIds.indexOf(prog.department_id) * K + (sec.is_special ? K : 0)) % dates.length;
     const pref = Array.from(
       { length: nDays },
       (_, j) => dates[(off + j) % dates.length],

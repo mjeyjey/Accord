@@ -13,6 +13,8 @@ import TabScroller from "../components/TabScroller";
 import { Avatar, Badge, Modal } from "../components/ui";
 import DeptLogo from "../components/DeptLogo";
 import { todayIso } from "../lib/periods";
+import Icon from "../components/icons";
+const TAB_ICON = { "Departments": "home", "Programs and floors": "list", "Subjects": "edit", "Sections": "layers", "Rooms": "door", "Proctors": "users", "Department heads": "check", "Account requests": "bell" };
 const ALL_TABS = [
   "Departments",
   "Programs and floors",
@@ -209,7 +211,7 @@ export default function Config() {
             className={t === tab ? "on" : ""}
             onClick={() => setTab(t)}
           >
-            {t}
+            <Icon name={TAB_ICON[t]} size={16} /><span>{t}</span>
           </button>
         ))}
       </TabScroller>
@@ -456,7 +458,7 @@ export default function Config() {
             a.year_level - b.year_level ||
             cmp(a.name, b.name)
           }
-          hint="Student count decides which room a section can be placed in."
+          hint="Create an Irregular section (e.g. name it IRR) per program and year for students whose subjects conflict. It is scheduled on different days from the regular sections."
           cols={[
             {
               key: "program",
@@ -465,6 +467,7 @@ export default function Config() {
             },
             { key: "year_level", label: "Year" },
             { key: "name", label: "Section" },
+            { key: "is_special", label: "Type", render: (r) => (r.is_special ? "Irregular" : "Regular") },
             { key: "student_count", label: "Students" },
           ]}
           fields={[
@@ -481,6 +484,7 @@ export default function Config() {
               options: YEARS,
             },
             { key: "name", label: "Section name", required: true },
+            { key: "is_special", label: "Section type", type: "select", options: [{ value: "false", label: "Regular" }, { value: "true", label: "Irregular (for conflicts)" }] },
             {
               key: "student_count",
               label: "Number of students",

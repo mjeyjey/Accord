@@ -19,7 +19,7 @@ const MANAGER = [
   { t: 'dash-emg', go: '/', title: 'Proctor emergencies', body: 'Exams whose proctor reported an emergency. Use Find replacement to pick a free proctor.' },
   { t: 'dash-avail', go: '/', title: 'Available proctors', body: 'Proctors who entered availability and have no exams yet. Filter by Assigned or All.' },
   { t: 'nav-/periods', go: '/periods', title: 'Exam periods', body: 'Create a period, generate the schedule, fix problems and export. Let’s look inside.' },
-  { t: 'per-bar', go: '/periods', title: 'Period controls', body: 'Choose a period, set how late proctors can accept open blocks, then Generate, Edit, Approve (admins) or Delete. Special exams are for irregular students.' },
+  { t: 'per-bar', go: '/periods', title: 'Period controls', body: 'Choose a period, set how late proctors can accept open blocks, then Generate, Edit, Approve (admins) or Delete.' },
   { t: 'per-tiles', go: '/periods', title: 'Period summary', body: 'Sections, scheduled and unscheduled sections, and exam days used. Click Unscheduled to see only problems.' },
   { t: 'per-filter', go: '/periods', title: 'Filters and export', body: 'Filter by program or problems, expand a department, open a year level to edit blocks, and download PDF/PNG/CSV.' },
   { t: 'nav-/config', go: '/config', title: 'Configuration', body: 'Set up your data. Let’s look inside.' },

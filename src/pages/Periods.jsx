@@ -18,7 +18,6 @@ import { exportTable } from "../lib/exportTable";
 import EditBlockModal from "../components/EditBlockModal";
 import ResolveUnplacedModal from "../components/ResolveUnplacedModal";
 import CountUp from "../components/CountUp";
-import SpecialExams from "../components/SpecialExams";
 const fmt = (d) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-PH", {
     weekday: "short",
@@ -73,7 +72,7 @@ export default function Periods() {
   const [editBlock, setEditBlock] = useState(null);
   const [resolve, setResolve] = useState(null);
   const [rep, setRep] = useState("");
-  const [special, setSpecial] = useState(false);
+  const [info, setInfo] = useState(false);
   const loadSched = () =>
     api
       .list("schedules")
@@ -574,44 +573,7 @@ export default function Periods() {
                   : "Pending approval"}
             </Badge>
           )}
-          {period && <Badge>{SEM[period.semester] || "Semester"}</Badge>}
-          {period && (
-            <Badge>{period.days_per_year} exam day(s) per year level</Badge>
-          )}
-          {period && (
-            <label
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 400,
-              }}
-            >
-              Proctors can accept until
-              <select
-                style={{ width: "auto" }}
-                disabled={locked}
-                aria-busy={locked}
-                value={period.accept_cutoff_hours ?? 1}
-                onChange={(e) => setCutoff(Number(e.target.value))}
-              >
-                {[
-                  ...new Set([
-                    ...CUTOFF_CHOICES,
-                    period.accept_cutoff_hours ?? 1,
-                  ]),
-                ]
-                  .sort((a, b) => a - b)
-                  .map((h) => (
-                    <option key={h} value={h}>
-                      {h === 0
-                        ? "the exam starts"
-                        : `${h} hour${h === 1 ? "" : "s"} before`}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          )}
+          {period && <button className="ghost" onClick={() => setInfo(true)} title="Period details" aria-label="Period details"><Icon name="list" size={16} /><span className="btxt">Details</span></button>}
           <span style={{ flex: 1 }} />
           {sel && period?.status === "generated" && !approved && (
             <button
@@ -635,7 +597,6 @@ export default function Periods() {
           {sel && (
             <button className="ghost" disabled={locked} onClick={openEdit} title="Edit period" aria-label="Edit period"><Icon name="edit" size={16} /><span className="btxt">Edit period</span></button>
           )}
-          {sel && <button className="ghost" onClick={() => setSpecial(true)} title="Special exams" aria-label="Special exams"><Icon name="clock" size={16} /><span className="btxt">Special exams</span></button>}
           {sel && (
             <button
               disabled={busy || locked}
@@ -854,7 +815,7 @@ export default function Periods() {
             <div className="progact" title={HINT}>
               <ExportMenu
                 small
-                label={`Export ${info.code}`}
+                label="Export"
                 onExport={(f) => doExportMany(list, f, info.code)}
                 disabled={locked || !list.some((y) => y.count)}
               />
@@ -1084,7 +1045,25 @@ export default function Periods() {
           onDone={loadSched}
         />
       )}
-      {special && <SpecialExams periodId={sel} rows={(sched || []).filter((x) => x.period_id === sel && x.status === "scheduled")} onClose={() => setSpecial(false)} />}
+      {info && period && (
+        <Modal title={period.name} onClose={() => setInfo(false)} footer={<button onClick={() => setInfo(false)}>Close</button>}>
+          {[["Semester", SEM[period.semester] || "-"], ["Dates", `${period.start_date} to ${period.end_date}`], ["Exam days per year level", period.days_per_year]]
+            .map(([k, v]) => <div className="drow" key={k}><small>{k}</small><div>{v}</div></div>)}
+          <label style={{ marginTop: 12 }}>Proctors can accept until
+            <select
+              style={{ width: "auto" }}
+              disabled={locked}
+              aria-busy={locked}
+              value={period.accept_cutoff_hours ?? 1}
+              onChange={(e) => setCutoff(Number(e.target.value))}
+            >
+              {[...new Set([...CUTOFF_CHOICES, period.accept_cutoff_hours ?? 1])]
+                .sort((a, b) => a - b)
+                .map((h) => <option key={h} value={h}>{h === 0 ? "the exam starts" : `${h} hour${h === 1 ? "" : "s"} before`}</option>)}
+            </select>
+          </label>
+        </Modal>
+      )}
     </>
   );
 }

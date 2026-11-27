@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "./ui";
 const CLICKABLE = [
   "emergency",
@@ -22,6 +23,7 @@ export default function NotificationPanel({
   onOpen,
   onReadAll,
 }) {
+  const [max, setMax] = useState(10);
   const unread = notes.filter((n) => !n.read).length;
   return (
     <div className={`notifpanel ${open ? "open" : ""}`} aria-hidden={!open}>
@@ -42,7 +44,7 @@ export default function NotificationPanel({
         </button>
       </div>
       <div className="np-list">
-        {notes.map((n) => (
+        {notes.slice(0, max).map((n) => (
           <button
             key={n.id}
             className={`nitem ${n.read ? "" : "unread"}`}
@@ -64,6 +66,7 @@ export default function NotificationPanel({
             No notifications yet.
           </p>
         )}
+        {notes.length > max && <button className="ghost sm" onClick={() => setMax(max + 10)}>See more</button>}
       </div>
     </div>
   );

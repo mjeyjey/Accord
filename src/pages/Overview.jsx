@@ -230,7 +230,7 @@ export default function Overview() {
       </div>
 
       <div className="two">
-        <section className="card">
+        <section className="card epd">
           <div className="card-head">
             <h3>Exams per day</h3>
             <Help
@@ -267,17 +267,6 @@ export default function Overview() {
               text="Click a date to see the exams scheduled on it. Dates filled in blue have exams."
             />
           </div>
-          {ok.length > 0 && !day && (
-            <input
-              className="searchbox"
-              placeholder="Search section, subject, room or proctor"
-              value={cq}
-              onChange={(e) => {
-                setCq(e.target.value);
-                setDay("");
-              }}
-            />
-          )}
           <div className="mini">
             {["S", "M", "T", "W", "T", "F", "S"].map((w, i) => (
               <small key={i}>{w}</small>
@@ -302,6 +291,7 @@ export default function Overview() {
               );
             })}
           </div>
+          {ok.length > 0 && <input className="searchbox" style={{ marginTop: 12 }} placeholder="Search section, subject, room or proctor" value={cq} onChange={(e) => setCq(e.target.value)} />}
           {!day && !needle && (
             <p className="hint">Click a date to see its exams.</p>
           )}
