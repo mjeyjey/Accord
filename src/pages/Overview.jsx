@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, t5 } from "../lib/api";
+import { api, t5, FLOORS, floorLabel } from "../lib/api";
 import { Avatar, Badge, Help, Modal, Skeleton, TableSkeleton } from "../components/ui";
 import MRow from "../components/MRow";
 import { useMobile } from "../lib/useMobile";
@@ -31,6 +31,10 @@ export default function Overview() {
   const [rep, setRep] = useState("");
   const [pq, setPq] = useState(""); // available proctors search
   const [cq, setCq] = useState(""); // calendar search
+  const [fprog, setFprog] = useState("");
+  const [fyear, setFyear] = useState("");
+  const [ffloor, setFfloor] = useState("");
+  const [fOpen, setFOpen] = useState(false);
   const [view, setView] = useState("");
   const me = useMe();
   const [pf, setPf] = useState("available");
@@ -150,19 +154,26 @@ export default function Overview() {
     byProg[p] = (byProg[p] || 0) + 1;
   });
   const needle = cq.trim().toLowerCase();
-  const okF = !needle
-    ? ok
-    : ok.filter((s) =>
+  const nF = [fprog, fyear, ffloor].filter(Boolean).length;
+  const searching = !!needle || nF > 0;
+  const okF = ok.filter(
+    (s) =>
+      (!fprog || s.program?.code === fprog) &&
+      (!fyear || String(s.section?.year_level) === fyear) &&
+      (!ffloor || s.room?.floor === ffloor) &&
+      (!needle ||
         `${s.program?.code} ${s.section?.year_level}${s.section?.name} ${s.subject?.code} ${s.subject?.title} ${s.room?.name} ${s.proctor?.full_name} ${s.exam_date}`
-          .toLowerCase()
-          .includes(needle),
-      );
+          .toLowerCase().includes(needle)),
+  );
+  const progList = [...new Set(ok.map((s) => s.program?.code).filter(Boolean))].sort();
+  const yearList = [...new Set(ok.map((s) => s.section?.year_level).filter(Boolean))].sort();
+  const floorList = FLOORS.filter((f) => ok.some((s) => s.room?.floor === f));
   const calByDate = {};
   okF.forEach((s) => {
     if (s.exam_date) calByDate[s.exam_date] = (calByDate[s.exam_date] || 0) + 1;
   });
   const hits =
-    needle && !day
+    searching && !day
       ? [...okF]
           .sort((a, b) =>
             (a.exam_date + a.start_time).localeCompare(
@@ -291,11 +302,42 @@ export default function Overview() {
               );
             })}
           </div>
-          {ok.length > 0 && <input className="searchbox" style={{ marginTop: 12 }} placeholder="Search section, subject, room or proctor" value={cq} onChange={(e) => setCq(e.target.value)} />}
-          {!day && !needle && (
+          {ok.length > 0 && (
+            <div className="bar" style={{ marginTop: 12, marginBottom: 0, flexWrap: "nowrap" }}>
+              <input className="searchbox" style={{ flex: 1, margin: 0 }} placeholder="Search section, subject, room or proctor"
+                value={cq} onChange={(e) => setCq(e.target.value)} />
+              <div className="menu">
+                <button className="ghost" onClick={() => setFOpen(!fOpen)}>
+                  <Icon name="sliders" size={16} /> Filter{nF ? ` (${nF})` : ""}
+                </button>
+                {fOpen && <div className="menu-back" onClick={() => setFOpen(false)} />}
+                {fOpen && (
+                  <div className="menu-list" style={{ minWidth: 220, padding: 12, gap: 10 }}>
+                    <label>Program
+                      <select value={fprog} onChange={(e) => setFprog(e.target.value)}>
+                        <option value="">All</option>{progList.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </label>
+                    <label>Year
+                      <select value={fyear} onChange={(e) => setFyear(e.target.value)}>
+                        <option value="">All</option>{yearList.map((y) => <option key={y} value={String(y)}>Year {y}</option>)}
+                      </select>
+                    </label>
+                    <label>Floor
+                      <select value={ffloor} onChange={(e) => setFfloor(e.target.value)}>
+                        <option value="">All</option>{floorList.map((f) => <option key={f} value={f}>{floorLabel(f)}</option>)}
+                      </select>
+                    </label>
+                    {nF > 0 && <button className="ghost sm" onClick={() => { setFprog(""); setFyear(""); setFfloor(""); }}>Clear filters</button>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {!day && !searching && (
             <p className="hint">Click a date to see its exams.</p>
           )}
-          {!day && needle && (
+          {!day && searching && (
             <>
               <h4 className="sechead" style={{ fontSize: 20 }}>
                 Results <span className="muted">{okF.length} exam hour(s)</span>
@@ -352,10 +394,10 @@ export default function Overview() {
                     <MRow key={s.id}
                       title={`${t5(s.start_time)} · ${s.program?.code} ${s.section?.year_level}${s.section?.name}`}
                       sub={s.subject?.code}
-                      onHold={() => setDet({ kind: "exam", s })} />
+                      onTap={() => setDet({ kind: "exam", s })} />
                   ))}
                   {!dayRows.length && <p className="empty">No exams on this date.</p>}
-                  {dayRows.length > 0 && <p className="mobhint">Hold a row for room and proctor</p>}
+                  {dayRows.length > 0 && <p className="mobhint">Tap a row for room and proctor</p>}
                 </div>
               ) : ( <div className="scroll" style={{ maxHeight: 260 }}>
                 <table>

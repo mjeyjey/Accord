@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, ReactNode, TouchEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, MouseEvent, ReactNode, TouchEvent, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useMobile } from '../lib/useMobile';
 import { Field as FieldControl, Modal, TableSkeleton, useLock, useUi } from './ui';
@@ -93,6 +93,7 @@ export default function CrudTable(p: Props) {
   const [loadErr, setLoadErr] = useState('');
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState('');
+  const dq = useDeferredValue(q);
   const [fv, setFv] = useState<Record<string, string>>({});
   const [fOpen, setFOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -110,7 +111,7 @@ export default function CrudTable(p: Props) {
   let shown = (rows || [])
     .filter(p.filter || (() => true))
     .filter((r) => (p.filters || []).every((f) => !fv[f.key] || f.test(r, fv[f.key])))
-    .filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+    .filter((r) => !dq || JSON.stringify(r).toLowerCase().includes(dq.toLowerCase()));
   if (p.sort) shown = [...shown].sort(p.sort);
   const pageRows = slicePage(shown, page, size);
   const detail = rows?.find((r) => r.id === detailId);

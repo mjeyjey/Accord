@@ -655,3 +655,34 @@ input[placeholder*="earch"], input[placeholder*="earch"]:focus {
 }
 .auth-card .forgot:hover { background: transparent; border: none; color: var(--blue); }
 .auth-card .foot { margin-top: 2px; }
+
+/* tile icons/badges */
+.badge svg { vertical-align: -2px; }
+
+/* low-end device mode */
+.lite *, .lite *::before, .lite *::after { transition: none !important; animation: none !important; }
+.lite .overlay { backdrop-filter: none; }
+.lite .card, .lite .tile, .lite .yearcard, .lite .topbar { box-shadow: none; }
+
+/* phone: exam period layout */
+@media (max-width: 600px) {
+  .per .grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* export button goes above the department card instead of floating on top of it */
+  .progwrap { display: flex; flex-direction: column; }
+  .progact { order: -1; position: static; align-self: flex-end; margin: 0 0 6px; }
+
+  /* department header: row 1 = logo + code + arrow, row 2 = info, row 3 = badges */
+  details.prog summary { gap: 6px 10px; }
+  details.prog summary .pname { flex: 1; min-width: 0; font-size: 20px; }
+  details.prog summary .chev { order: 2; }
+  details.prog summary > .muted { order: 3; flex: 1 1 100%; font-size: 12px; }
+  details.prog summary > .badge { order: 4; }
+
+  /* year cards: no overlapping badges/buttons */
+  .yearcard { gap: 8px; overflow: hidden; }
+  .yearcard > .badge { align-self: flex-start; }
+  .yc-head { flex-wrap: nowrap; }
+  .yc-actions { flex-wrap: nowrap; justify-content: space-between; align-items: center; }
+  .yc-actions .menu-list { right: 0; left: auto; }
+}

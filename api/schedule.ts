@@ -208,8 +208,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (action === "proctor_subjects" || action === "set_proctor_subjects") {
       const { data: p } = await db.from("profiles").select("id,role,department_id").eq("id", b.proctor_id).single();
-      if (!p || p.role !== "proctor") return res.status(404).json({ error: "Proctor not found" });
-      if (me.role === "head" && p.department_id !== me.department_id) return res.status(403).json({ error: "Outside your department" });
+      const own = p?.id === me.id;
+      if (!p || (p.role !== "proctor" && !own)) return res.status(404).json({ error: "Proctor not found" });
+      if (me.role === "head" && !own && p.department_id !== me.department_id) return res.status(403).json({ error: "Outside your department" });
       if (action === "set_proctor_subjects") {
         const codes = [...new Set((Array.isArray(b.codes) ? b.codes : []).map(String))].slice(0, 200);
         await db.from("proctor_subjects").delete().eq("proctor_id", p.id);

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { LITE } from "../lib/lite";
 export default function CountUp({ value, duration = 900 }) {
   const [n, setN] = useState(0);
   const from = useRef(0);
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (LITE) {
       setN(value);
       from.current = value;
       return;

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import CountUp from "./CountUp";
+import { LITE } from "../lib/lite";
 const COLORS = ["var(--blue)", "var(--head)", "var(--line)"];
 // 0 -> 1 progress, restarts whenever key changes (new data = animate again from zero).
 function useGrow(key, ms = 1000) {
   const [p, setP] = useState(0);
   useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (LITE) {
       setP(1);
       return;
     }

@@ -413,17 +413,11 @@ export default function Availability() {
   return (
     <>
       <div className="tabs">
-        <button
-          className={tab === "current" ? "on" : ""}
-          onClick={() => setTab("current")}
-        >
-          Upcoming
+        <button className={tab === "current" ? "on" : ""} onClick={() => setTab("current")}>
+          <Icon name="calendar" size={16} /><span>Upcoming</span>
         </button>
-        <button
-          className={tab === "history" ? "on" : ""}
-          onClick={() => setTab("history")}
-        >
-          History
+        <button className={tab === "history" ? "on" : ""} onClick={() => setTab("history")}>
+          <Icon name="archive" size={16} /><span>History</span>
         </button>
       </div>
       {tab === "current" ? current() : history()}

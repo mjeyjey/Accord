@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   NavLink,
   Navigate,
@@ -15,20 +15,20 @@ import Icon from "./components/icons";
 import { Avatar, useLock, useUi } from "./components/ui";
 import { SettingsModal, ProfileModal } from "./components/AccountModals";
 import Login from "./pages/Login";
-import Overview from "./pages/Overview";
-import Periods from "./pages/Periods";
-import Config from "./pages/Config";
-import Reports from "./pages/Reports";
-import History from "./pages/History";
-import MySchedule from "./pages/MySchedule";
-import Availability from "./pages/Availability";
-import Requests from "./pages/Requests";
+const Overview = lazy(() => import("./pages/Overview"));
+const Periods = lazy(() => import("./pages/Periods"));
+const Config = lazy(() => import("./pages/Config"));
+const Reports = lazy(() => import("./pages/Reports"));
+const History = lazy(() => import("./pages/History"));
+const MySchedule = lazy(() => import("./pages/MySchedule"));
+const Availability = lazy(() => import("./pages/Availability"));
+const Requests = lazy(() => import("./pages/Requests"));
 import NotificationPanel from "./components/NotificationPanel";
 import OtpGate from "./components/OtpGate";
 import BulletinPanel from "./components/BulletinPanel";
 import AssistantPanel from "./components/AssistantPanel";
 import ChatPanel from "./components/ChatPanel";
-import Tour from "./components/Tour";
+const Tour = lazy(() => import("./components/Tour"));
 const TITLES = {
   "/": "Dashboard",
   "/periods": "Exam periods",
@@ -80,6 +80,7 @@ export default function App() {
     seen.current = null;
     let stop = false;
     const pull = async () => {
+      if (document.hidden && seen.current !== null) return;
       try {
         api
           .list("bulletins")
@@ -113,7 +114,7 @@ export default function App() {
       }
     };
     pull();
-    const t = setInterval(pull, 20000);
+    const t = setInterval(pull, 30000);
     return () => {
       stop = true;
       clearInterval(t);
@@ -419,7 +420,7 @@ export default function App() {
               </button>
             </div>
           </header>
-          <Routes>
+          <Suspense fallback={null}><Routes>
             {manager ? (
               <>
                 <Route path="/" element={<Overview />} />
@@ -442,7 +443,7 @@ export default function App() {
               path="*"
               element={<Navigate to={manager ? "/" : "/my-schedule"} />}
             />
-          </Routes>
+          </Routes></Suspense>
         </div>
       </div>
 
@@ -455,7 +456,7 @@ export default function App() {
           onEmailChanged={(email) => setMe({ ...me, email })}
         />
       )}
-      {tourOn && <Tour role={me.role} onClose={finishTour} />}
+      {tourOn && <Suspense fallback={null}><Tour role={me.role} onClose={finishTour} /></Suspense>}
     </MeCtx.Provider>
   );
 }

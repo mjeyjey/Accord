@@ -441,18 +441,10 @@ export default function Periods() {
   const tiles = [
     ["Sections", totalSections, "layers", "", "/config?tab=Sections"],
     ["Scheduled sections", totalScheduled, "check", "good"],
-    [
-      "Unscheduled",
-      totalBad,
-      "alert",
-      totalBad ? "warn" : "",
-      undefined,
-      () => {
-        setOnlyUnplaced((v) => !v);
-        resetOpen();
-      },
-    ],
+    ["Unscheduled", totalBad, "alert", totalBad ? "warn" : "", undefined, () => { setOnlyUnplaced((v) => !v); resetOpen(); }, onlyUnplaced],
     ["Exam days used", totalDays, "calendar", ""],
+    ["Problems", problemCount, "flag", problemCount ? "warn" : "", undefined, () => { setOnlyIssues((v) => !v); resetOpen(); }, onlyIssues],
+    ["Pending", pendingCount, "clock", pendingCount ? "warn" : "", undefined, () => { setOnlyPending((v) => !v); resetOpen(); }, onlyPending],
   ];
   const grouped = progs.reduce((m, p) => {
     (m[p.department?.code] ||= []).push(p);
@@ -561,23 +553,16 @@ export default function Periods() {
             ))}
           </select>
           {period && (
-            <Badge
-              tone={
-                approved
-                  ? "green"
-                  : period.status === "draft"
-                    ? "gray"
-                    : "amber"
-              }
-            >
-              {approved
-                ? "Approved"
-                : period.status === "draft"
-                  ? "Draft"
-                  : "Pending approval"}
-            </Badge>
+            <button className="ghost" onClick={() => setInfo(true)} title="Period details" aria-label="Period details">
+              <Icon name="list" size={16} /><span className="btxt">Details</span>
+            </button>
           )}
-          {period && <button className="ghost" onClick={() => setInfo(true)} title="Period details" aria-label="Period details"><Icon name="list" size={16} /><span className="btxt">Details</span></button>}
+          {period && (() => {
+            const st = approved ? ["green", "check", "Approved"]
+              : period.status === "draft" ? ["gray", "edit", "Draft"]
+              : ["amber", "clock", "Pending approval"];
+            return <Badge tone={st[0]}><Icon name={st[1]} size={13} /> {st[2]}</Badge>;
+          })()}
           <span style={{ flex: 1 }} />
           {sel && period?.status === "generated" && !approved && (
             <button
@@ -615,37 +600,22 @@ export default function Periods() {
       </section>
 
       <div className="grid" data-tour="per-tiles">
-        {tiles.map(([k, v, icon, tone, to, act], i) => (
+        {tiles.map(([k, v, icon, tone, to, act, on], i) => (
           <div
-            className={`tile ${to || act ? "click" : ""} ${tone} ${i === 0 ? "fill" : ""} ${k === "Unscheduled" && onlyUnplaced ? "on" : ""}`}
+            className={`tile ${to || act ? "click" : ""} ${tone} ${i === 0 ? "fill" : ""} ${on ? "on" : ""}`}
             key={k}
             role={to || act ? "button" : undefined}
             tabIndex={to || act ? 0 : undefined}
             onClick={() => (act ? act() : to && nav(to))}
-            onKeyDown={(e) =>
-              e.key === "Enter" && (act ? act() : to && nav(to))
-            }
+            onKeyDown={(e) => e.key === "Enter" && (act ? act() : to && nav(to))}
           >
-            <span className="ico">
-              <Icon name={icon} />
-            </span>
+            <span className="ico"><Icon name={icon} /></span>
             <div>
               <b><CountUp value={sched === null ? 0 : v} /></b>
               <span>{k}</span>
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="toggles">
-        <button type="button" className={`tgl ${onlyIssues ? "on" : ""}`}
-          onClick={() => { setOnlyIssues((v) => !v); resetOpen(); }}>
-          Only show problems <b>{problemCount}</b>
-        </button>
-        <button type="button" className={`tgl ${onlyPending ? "on" : ""}`}
-          onClick={() => { setOnlyPending((v) => !v); resetOpen(); }}>
-          Pending (proctor or room) <b>{pendingCount}</b>
-        </button>
       </div>
 
       <section className="card" data-tour="per-filter">

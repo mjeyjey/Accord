@@ -107,7 +107,7 @@ export default function Requests() {
       {rows !== null && periods.length > 0 && (
         <div className="tabs">
           <button className={!pfv ? "on" : ""} onClick={() => setPf("")}>
-            All periods
+            <Icon name="list" size={16} /><span>All periods</span>
           </button>
           {periods.map((p) => (
             <button
@@ -115,7 +115,7 @@ export default function Requests() {
               className={pfv === p.id ? "on" : ""}
               onClick={() => setPf(p.id)}
             >
-              {p.name} · {openCount(p.id)}
+              <Icon name="flag" size={16} /><span>{p.name} · {openCount(p.id)}</span>
             </button>
           ))}
         </div>

@@ -5,6 +5,7 @@ import { groupBy, groupByPeriod, periodTitle, todayIso } from "../lib/periods";
 import { useHashScroll } from "../lib/useHashScroll";
 import CountUp from "../components/CountUp";
 import PeriodTabs from "../components/PeriodTabs";
+import Icon from "../components/icons";
 const fmt = (d) =>
   new Date(d + "T00:00:00").toLocaleDateString("en-PH", {
     weekday: "short",
@@ -151,17 +152,11 @@ export default function MySchedule() {
   return (
     <>
       <div className="tabs">
-        <button
-          className={tab === "up" ? "on" : ""}
-          onClick={() => setTab("up")}
-        >
-          Upcoming
+        <button className={tab === "up" ? "on" : ""} onClick={() => setTab("up")}>
+          <Icon name="calendar" size={16} /><span>Upcoming</span>
         </button>
-        <button
-          className={tab === "past" ? "on" : ""}
-          onClick={() => setTab("past")}
-        >
-          History
+        <button className={tab === "past" ? "on" : ""} onClick={() => setTab("past")}>
+          <Icon name="archive" size={16} /><span>History</span>
         </button>
       </div>
       {rows !== null &&

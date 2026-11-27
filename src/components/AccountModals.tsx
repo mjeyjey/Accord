@@ -63,7 +63,7 @@ export function ProfileModal({ me, onClose, onSaved, onEmailChanged }: {
       <div className="tabs">
         <button type="button" className={tab === 'profile' ? 'on' : ''} onClick={() => setTab('profile')}>Profile</button>
         <button type="button" className={tab === 'email' ? 'on' : ''} onClick={() => setTab('email')}>Change email</button>
-        {me.role === 'proctor' && <button type="button" className={tab === 'subjects' ? 'on' : ''} onClick={() => setTab('subjects')}>My subjects</button>}
+        {me.role !== 'admin' && <button type="button" className={tab === 'subjects' ? 'on' : ''} onClick={() => setTab('subjects')}>My subjects</button>}
       </div>
       {tab === 'subjects' ? <MySubjects me={me} /> : tab === 'email' ? <ChangeEmailForm me={me} onChanged={(email) => { onEmailChanged(email); onClose(); }} /> : <form id="profform" onSubmit={submit} noValidate>
         {err && <div className="alert error">{err}</div>}

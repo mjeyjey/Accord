@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 export interface Me { id: string; full_name: string; role: 'admin' | 'head' | 'proctor'; department_id: string | null; department?: { code: string; name: string } | null; email?: string | null; avatar_url?: string | null; tour_seen_at?: string | null; status?: string }
 
 const cache = new Map<string, { t: number; p: Promise<any> }>();
-const TTL = 20000, NO_CACHE = ['notifications', 'bulletins', 'trash'];
+const TTL = 60000, NO_CACHE = ['notifications', 'bulletins', 'trash'];
 supabase.auth.onAuthStateChange(() => cache.clear());
 function cachedList(table: string) {
   const path = `db?table=${table}`;
